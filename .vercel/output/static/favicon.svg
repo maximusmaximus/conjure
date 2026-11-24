@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Conjure">
+  <rect width="32" height="32" rx="7" fill="#110E0C"/>
+  <circle cx="16" cy="9.2" r="3.1" fill="#E27A3A"/>
+  <circle cx="16" cy="8.6" r="1.25" fill="#F6EFE4"/>
+  <path d="M6.4 17.4h19.2c-.55 6.1-4.35 9.8-9.6 9.8s-9.05-3.7-9.6-9.8z" fill="#8A5A3A"/>
+  <rect x="5" y="15.6" width="22" height="3.1" rx="1.55" fill="#E27A3A"/>
+  <ellipse cx="16" cy="17.15" rx="6.4" ry="1.15" fill="#3F8F55"/>
+</svg>

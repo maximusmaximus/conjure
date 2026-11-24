@@ -1,0 +1,116 @@
+{
+  "app": { "title": "Conjure" },
+  "start": "Start",
+  "soundOn": "Sound on",
+  "soundOff": "Sound off",
+  "optIn": "Include me when I am signed in",
+  "hint": {
+    "drop": "Tap an ingredient. It drops in.",
+    "sensor": "A sensor can stir the brew.",
+    "keys": "Keys 1–8 drop ingredients."
+  },
+  "vibe": { "label": "Vibe", "calm": "Calm", "chaotic": "Chaotic", "spooky": "Spooky" },
+  "quiet": "Keep it quiet",
+  "gather": "Gather",
+  "capture": "Capture",
+  "share": "Share",
+  "remix": "Remix",
+  "close": "Close",
+  "back": "Back to the cauldron",
+  "credits": "Credits",
+  "privacy": "Privacy",
+  "copy": "Copy link",
+  "copied": "Link copied.",
+  "watching": "You are watching.",
+  "inPot": "in the pot",
+  "hostOnly": "The host captures.",
+  "full": "The circle is full.",
+  "sensor": {
+    "mic": "Mic",
+    "camera": "Camera",
+    "motion": "Motion",
+    "sample": "Sample color",
+    "stop": "Tap to stop"
+  },
+  "mic": {
+    "line1": "Your voice shapes the brew.",
+    "line2": "Only levels are shared, not audio.",
+    "go": "Use microphone"
+  },
+  "cam": {
+    "line1": "Sample a color, or wave to stir.",
+    "line2": "The picture stays on this phone.",
+    "go": "Use camera"
+  },
+  "motion": {
+    "line1": "Tilt to stir. Shake for a burst.",
+    "line2": "The phone may ask for motion.",
+    "go": "Use motion"
+  },
+  "denied": "You can still tap ingredients.",
+  "consent": {
+    "line1": "Include you in this capture?",
+    "line2": "No answer leaves you out.",
+    "in": "Include me",
+    "out": "Leave me out",
+    "wait": "The circle is choosing."
+  },
+  "record": "Saving the loop",
+  "review": {
+    "title": "Captured",
+    "still": "Save still",
+    "loop": "Save loop",
+    "recipe": "Save recipe",
+    "glb": "Save GLB",
+    "mint": "Mint"
+  },
+  "mint": {
+    "title": "Mint on testnet",
+    "body": "You pay gas on Robinhood Chain testnet.",
+    "connect": "Connect wallet",
+    "noWallet": "No wallet in this browser.",
+    "noContract": "No collection contract is configured.",
+    "meta": "Download metadata",
+    "cap": "Daily mint cap reached.",
+    "sent": "Mint submitted."
+  },
+  "room": {
+    "title": "One cauldron",
+    "host": "You host this circle.",
+    "code": "Code",
+    "join": "Join",
+    "watch": "Watch",
+    "leave": "Leave",
+    "lock": "Lock",
+    "unlock": "Unlock",
+    "kick": "Remove",
+    "handoff": "Make host",
+    "name": "Your name",
+    "open": "Open a circle",
+    "invite": "A cauldron invited you."
+  },
+  "seat": {
+    "stirrer": "Stirrer",
+    "singer": "Singer",
+    "spark": "Spark",
+    "seer": "Seer"
+  },
+  "form": { "label": "Form" },
+  "deep": "Reorder the drops. Mute one to keep it neutral.",
+  "up": "Earlier",
+  "down": "Later",
+  "mute": "Mute",
+  "unmute": "Restore",
+  "saveRecipe": "Save recipe",
+  "saved": "Recipe saved.",
+  "lineage": "Remixed from",
+  "report": "Report",
+  "reportSent": "Report sent.",
+  "reason": { "spam": "Spam", "unsafe": "Unsafe", "other": "Other" },
+  "ar": "Place in room",
+  "tier": "Graphics",
+  "empty": "The cauldron is waiting.",
+  "replay": "Replaying",
+  "notFound": "This brew is not on this device.",
+  "who": "Who is here"
+}

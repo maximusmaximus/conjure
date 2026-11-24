@@ -1,0 +1,1 @@
+import{r as e}from"./preload-helper-DyD2ODGV.js";import{n as t}from"./index-BZ0AqF05.js";import{t as n}from"./app-bbjrvHZr.js";var r=e();function i(){let{room:e,watch:i}=t.useSearch();return(0,r.jsx)(n,{invite:e,watch:i})}export{i as component};

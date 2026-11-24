@@ -1,0 +1,454 @@
+{
+  "credit": "Xero Emoji by Max Infeld, CC BY 4.0",
+  "creditUrl": "https://github.com/maximusmaximus/xeroemoji",
+  "assets": [
+    {
+      "path": "procedural/cauldron",
+      "title": "Cauldron, brew, and forms",
+      "author": "Conjure",
+      "source": "Generated in the browser with three.js geometry. No external mesh.",
+      "url": "https://threejs.org/",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f300.svg",
+      "title": "Xero Emoji 1f300",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f300.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f311.svg",
+      "title": "Xero Emoji 1f311",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f311.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f315.svg",
+      "title": "Xero Emoji 1f315",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f315.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f319.svg",
+      "title": "Xero Emoji 1f319",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f319.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f31e.svg",
+      "title": "Xero Emoji 1f31e",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f31e.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f33f.svg",
+      "title": "Xero Emoji 1f33f",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f33f.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f343.svg",
+      "title": "Xero Emoji 1f343",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f343.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f36f.svg",
+      "title": "Xero Emoji 1f36f",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f36f.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f3a4.svg",
+      "title": "Xero Emoji 1f3a4",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f3a4.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f3b5.svg",
+      "title": "Xero Emoji 1f3b5",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f3b5.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f3e0.svg",
+      "title": "Xero Emoji 1f3e0",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f3e0.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f440.svg",
+      "title": "Xero Emoji 1f440",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f440.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f441.svg",
+      "title": "Xero Emoji 1f441",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f441.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f44b.svg",
+      "title": "Xero Emoji 1f44b",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f44b.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f44f.svg",
+      "title": "Xero Emoji 1f44f",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f44f.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f451.svg",
+      "title": "Xero Emoji 1f451",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f451.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f465.svg",
+      "title": "Xero Emoji 1f465",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f465.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f48e.svg",
+      "title": "Xero Emoji 1f48e",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f48e.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f4a1.svg",
+      "title": "Xero Emoji 1f4a1",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f4a1.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f4a7.svg",
+      "title": "Xero Emoji 1f4a7",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f4a7.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f4cb.svg",
+      "title": "Xero Emoji 1f4cb",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f4cb.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f4d6.svg",
+      "title": "Xero Emoji 1f4d6",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f4d6.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f4dc.svg",
+      "title": "Xero Emoji 1f4dc",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f4dc.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f4f1.svg",
+      "title": "Xero Emoji 1f4f1",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f4f1.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f4f7.svg",
+      "title": "Xero Emoji 1f4f7",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f4f7.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f4f8.svg",
+      "title": "Xero Emoji 1f4f8",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f4f8.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f507.svg",
+      "title": "Xero Emoji 1f507",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f507.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f50a.svg",
+      "title": "Xero Emoji 1f50a",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f50a.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f512.svg",
+      "title": "Xero Emoji 1f512",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f512.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f517.svg",
+      "title": "Xero Emoji 1f517",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f517.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f525.svg",
+      "title": "Xero Emoji 1f525",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f525.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f590.svg",
+      "title": "Xero Emoji 1f590",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f590.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f5a4.svg",
+      "title": "Xero Emoji 1f5a4",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f5a4.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f6a9.svg",
+      "title": "Xero Emoji 1f6a9",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f6a9.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f6aa.svg",
+      "title": "Xero Emoji 1f6aa",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f6aa.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f6e1.svg",
+      "title": "Xero Emoji 1f6e1",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f6e1.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f944.svg",
+      "title": "Xero Emoji 1f944",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f944.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f9c2.svg",
+      "title": "Xero Emoji 1f9c2",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f9c2.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f9d1.svg",
+      "title": "Xero Emoji 1f9d1",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f9d1.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f9ea.svg",
+      "title": "Xero Emoji 1f9ea",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f9ea.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f9ed.svg",
+      "title": "Xero Emoji 1f9ed",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f9ed.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1fa84.svg",
+      "title": "Xero Emoji 1fa84",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1fa84.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1fae7.svg",
+      "title": "Xero Emoji 1fae7",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1fae7.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/23f8.svg",
+      "title": "Xero Emoji 23f8",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/23f8.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/25b6.svg",
+      "title": "Xero Emoji 25b6",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/25b6.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/267b.svg",
+      "title": "Xero Emoji 267b",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/267b.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/26a1.svg",
+      "title": "Xero Emoji 26a1",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/26a1.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/2705.svg",
+      "title": "Xero Emoji 2705",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/2705.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/2716.svg",
+      "title": "Xero Emoji 2716",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/2716.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/2728.svg",
+      "title": "Xero Emoji 2728",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/2728.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/2744.svg",
+      "title": "Xero Emoji 2744",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/2744.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/274c.svg",
+      "title": "Xero Emoji 274c",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/274c.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/2b06.svg",
+      "title": "Xero Emoji 2b06",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/2b06.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/2b07.svg",
+      "title": "Xero Emoji 2b07",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/2b07.svg",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/2b50.svg",
+      "title": "Xero Emoji 2b50",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/2b50.svg",
+      "license": "CC-BY-4.0"
+    }
+  ]
+}

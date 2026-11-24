@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Conjure",
+      "hasCanvas": true,
+      "bodyTextLen": 122,
+      "bodyTextHash": "f0764169e7551739c6d061a2307eca5c0195af6a11d1e1b6cd1d82de694c809e",
+      "bodyTextPrefix": "Conjure Start Ember Moss Moon Salt Honey Frost Ink Spark Quiet b",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Conjure",
+      "hasCanvas": true,
+      "bodyTextLen": 96,
+      "bodyTextHash": "37f9527d1b1144ecd934be127efea71a7dd475eb9788f9dc304d4c685aa7b3b0",
+      "bodyTextPrefix": "Conjure Start Ember Moss Moon Salt Honey Frost Ink Spark Sound o",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}
