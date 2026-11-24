@@ -1,7 +1,8 @@
 import { o as __toESM } from "../_runtime.mjs";
-import { C as Object3D, E as QuaternionKeyframeTrack, I as require_jsx_runtime, L as require_react, M as Vector2, T as Quaternion, c as Color, i as AnimationClip, k as SRGBColorSpace, n as useFrame, o as CanvasTexture, r as useThree, t as Canvas, u as Euler } from "../_libs/@react-three/fiber+[...].mjs";
-import { S as spinSnapshot, _ as setExportGlb, a as decaySensor, b as spin, c as ingredientById, d as masterMix, f as punch, g as setEnterAR, h as remoteSensor, i as computeBrew, l as liveSensor, m as rememberedMotion, o as flingVel, p as punchStrength, r as blendSensors, s as hslToHex, v as setGrabStill, w as toolTouch, x as spinFrames, y as sparks } from "./app-CUQQBAqP.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/scene-DGbIBYMG.js
+import { G as RGBAFormat, H as Quaternion, J as SRGBColorSpace, K as Raycaster, O as Matrix4, R as Object3D, U as QuaternionKeyframeTrack, _ as Euler, a as useFrame, at as require_jsx_runtime, c as AnimationClip, et as Vector2, f as CanvasTexture, g as DataTexture, i as Canvas, m as Color, n as AdaptiveDpr, o as useThree, ot as require_react, p as ClampToEdgeWrapping, r as ContactShadows, s as PMREMGenerator, t as PerformanceMonitor, tt as Vector3, w as LinearFilter } from "../_libs/@react-three/drei+[...].mjs";
+import { A as toolTouch, C as setRayView, D as spinSnapshot, E as spinFrames, O as stepBrewPhysics, S as setGrabStill, T as spin, _ as punchStrength, a as decaySensor, b as setEnterAR, c as hslToHex, d as liveSensor, g as punch, h as physicsSnapshot, i as computeBrew, l as ingredientById, m as masterMix, o as effectsFor, p as localGravity, r as blendSensors, s as flingVel, u as liveBodies, v as rememberedMotion, w as sloshGrid, x as setExportGlb, y as remoteSensor } from "./app-36nkK2us.mjs";
+import { a as RenderPass, i as UnrealBloomPass, n as RoomEnvironment, o as EffectComposer, r as BokehPass } from "../_libs/three.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/scene-BKYjPw4d.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var potPoints = (() => {
@@ -17,7 +18,7 @@ var potPoints = (() => {
 function mixNow(drops, vibe) {
 	return computeBrew(drops, blendSensors([liveSensor, remoteSensor]), vibe);
 }
-function Rig({ drops, vibe, form, reduced, particles, detail }) {
+function Rig({ drops, vibe, form, reduced, particles, detail, fx }) {
 	useFrame((_, delta) => {
 		const dt = Math.min(delta, .1);
 		if (!reduced && !masterMix.freeze) decaySensor(liveSensor, dt);
@@ -33,11 +34,13 @@ function Rig({ drops, vibe, form, reduced, particles, detail }) {
 		form,
 		reduced,
 		particles,
-		detail
+		detail,
+		fx
 	});
 }
-function BrewMesh({ drops, vibe, form, reduced, particles, detail }) {
+function BrewMesh({ drops, vibe, form, reduced, particles, detail, fx }) {
 	const liquid = (0, import_react.useRef)(null);
+	const potion = (0, import_react.useRef)(null);
 	(0, import_react.useRef)(null);
 	const orb = (0, import_react.useRef)(null);
 	const pot = (0, import_react.useRef)(null);
@@ -45,11 +48,30 @@ function BrewMesh({ drops, vibe, form, reduced, particles, detail }) {
 	const glow = (0, import_react.useRef)(null);
 	const flash = (0, import_react.useRef)(new Color("#e27a3a"));
 	const formRef = form;
+	const { camera, gl } = useThree();
+	const sloshTex = (0, import_react.useMemo)(() => {
+		const size = 32;
+		const data = /* @__PURE__ */ new Uint8Array(4096);
+		data.fill(128);
+		const tex = new DataTexture(data, size, size, RGBAFormat);
+		tex.colorSpace = "";
+		tex.wrapS = ClampToEdgeWrapping;
+		tex.wrapT = ClampToEdgeWrapping;
+		tex.magFilter = LinearFilter;
+		tex.minFilter = LinearFilter;
+		tex.needsUpdate = true;
+		return tex;
+	}, []);
 	const liquidUniforms = (0, import_react.useMemo)(() => ({
 		uTime: { value: 0 },
 		uColor: { value: new Color("#c46a32") },
-		uEnergy: { value: .4 }
-	}), []);
+		uEnergy: { value: .4 },
+		uSlosh: { value: sloshTex }
+	}), [sloshTex]);
+	const compilePotion = (0, import_react.useCallback)((shader) => {
+		shader.uniforms.uSlosh = liquidUniforms.uSlosh;
+		shader.vertexShader = shader.vertexShader.replace("#include <uv_pars_vertex>", "#include <uv_pars_vertex>\nuniform sampler2D uSlosh;").replace("#include <begin_vertex>", "#include <begin_vertex>\nfloat sloshH = texture2D(uSlosh, uv).r * 2.0 - 1.0;\ntransformed.z += sloshH * 0.28;");
+	}, [liquidUniforms]);
 	const skinUniforms = (0, import_react.useMemo)(() => ({
 		uTime: { value: 0 },
 		uColor: { value: new Color("#e27a3a") },
@@ -98,7 +120,68 @@ function BrewMesh({ drops, vibe, form, reduced, particles, detail }) {
 			pot.current.rotation.y = spin.y;
 			pot.current.rotation.z = Math.sin(spin.z) * .12 + leanZ * .25;
 		}
+		stepBrewPhysics(dt, {
+			gravity: localGravity(spin.x + leanX, spin.y, spin.z + leanZ),
+			tiltX: reduced ? leanX * .25 : leanX,
+			tiltZ: reduced ? leanZ * .25 : leanZ,
+			shake: reduced || masterMix.freeze ? 0 : liveSensor.shake
+		});
+		const grid = sloshGrid();
+		const data = sloshTex.image.data;
+		const size = sloshTex.image.width;
+		const n = grid.n;
+		for (let y = 0; y < size; y += 1) {
+			const gy = Math.min(n - 1, y * n / size) | 0;
+			for (let x = 0; x < size; x += 1) {
+				const gx = Math.min(n - 1, x * n / size) | 0;
+				const h = grid.h[gy * n + gx] ?? 0;
+				const byte = Math.max(0, Math.min(255, Math.round((h + .48) / .96 * 255)));
+				const i = (y * size + x) * 4;
+				data[i] = byte;
+				data[i + 1] = byte;
+				data[i + 2] = byte;
+				data[i + 3] = 255;
+			}
+		}
+		sloshTex.needsUpdate = true;
+		if (potion.current) {
+			potion.current.color.copy(liquidUniforms.uColor.value);
+			potion.current.emissive.copy(liquidUniforms.uColor.value);
+			potion.current.emissiveIntensity = fx.emissiveIntensity * (.22 + liquidUniforms.uEnergy.value);
+		}
 	});
+	(0, import_react.useEffect)(() => {
+		const raycaster = new Raycaster();
+		const ndc = new Vector2();
+		const inv = new Matrix4();
+		const origin = new Vector3();
+		const dir = new Vector3();
+		setRayView((x, y) => {
+			const group = brewGroup.current;
+			const rect = gl.domElement.getBoundingClientRect();
+			if (!group || rect.width < 1 || rect.height < 1) return null;
+			ndc.x = (x - rect.left) / rect.width * 2 - 1;
+			ndc.y = -((y - rect.top) / rect.height) * 2 + 1;
+			raycaster.setFromCamera(ndc, camera);
+			group.updateWorldMatrix(true, false);
+			inv.copy(group.matrixWorld).invert();
+			origin.copy(raycaster.ray.origin).applyMatrix4(inv);
+			dir.copy(raycaster.ray.direction).transformDirection(inv).normalize();
+			return {
+				origin: [
+					origin.x,
+					origin.y,
+					origin.z
+				],
+				dir: [
+					dir.x,
+					dir.y,
+					dir.z
+				]
+			};
+		});
+		return () => setRayView(null);
+	}, [camera, gl]);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("group", { children: [
 		/* @__PURE__ */ (0, import_jsx_runtime.jsx)("pointLight", {
 			ref: glow,
@@ -124,6 +207,7 @@ function BrewMesh({ drops, vibe, form, reduced, particles, detail }) {
 						0,
 						0
 					],
+					receiveShadow: true,
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("circleGeometry", { args: [1.35, 40] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("meshStandardMaterial", {
 						color: "#3a2e28",
 						roughness: 1
@@ -135,11 +219,11 @@ function BrewMesh({ drops, vibe, form, reduced, particles, detail }) {
 						0,
 						0
 					],
-					castShadow: false,
+					castShadow: fx.shadows,
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("latheGeometry", { args: [potPoints, detail >= 5 ? 64 : 40] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("meshStandardMaterial", {
 						color: "#8d6b52",
-						roughness: .62,
-						metalness: .28
+						roughness: .55,
+						metalness: .34
 					})]
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("mesh", {
@@ -153,6 +237,7 @@ function BrewMesh({ drops, vibe, form, reduced, particles, detail }) {
 						0,
 						0
 					],
+					castShadow: fx.shadows,
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("torusGeometry", { args: [
 						.98,
 						.055,
@@ -160,8 +245,8 @@ function BrewMesh({ drops, vibe, form, reduced, particles, detail }) {
 						40
 					] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("meshStandardMaterial", {
 						color: "#e0b07a",
-						roughness: .35,
-						metalness: .6
+						roughness: .28,
+						metalness: .72
 					})]
 				}),
 				[
@@ -201,7 +286,27 @@ function BrewMesh({ drops, vibe, form, reduced, particles, detail }) {
 						0,
 						0
 					],
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("circleGeometry", { args: [.78, 48] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("shaderMaterial", {
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("circleGeometry", { args: [.78, fx.transmission > 0 ? 64 : 40] }), fx.transmission > 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("meshPhysicalMaterial", {
+						ref: potion,
+						color: "#c46a32",
+						transmission: fx.transmission,
+						thickness: fx.thickness,
+						ior: fx.ior,
+						iridescence: fx.iridescence,
+						iridescenceIOR: 1.3,
+						clearcoat: fx.clearcoat,
+						sheen: fx.sheen,
+						sheenColor: "#fff1df",
+						roughness: .08,
+						metalness: 0,
+						emissive: "#c46a32",
+						emissiveIntensity: fx.emissiveIntensity * .45,
+						transparent: true,
+						opacity: .96,
+						attenuationColor: "#e27a3a",
+						attenuationDistance: .55,
+						onBeforeCompile: compilePotion
+					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("shaderMaterial", {
 						ref: liquid,
 						transparent: true,
 						uniforms: liquidUniforms,
@@ -228,8 +333,7 @@ function BrewMesh({ drops, vibe, form, reduced, particles, detail }) {
 					count: particles
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Falls, { drops }),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sparks, {}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Charms, { drops }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PhysVis, { fx }),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Ladle, {})
 			]
 		})
@@ -367,6 +471,7 @@ function Embers({ drops, vibe, count }) {
 			transparent: true,
 			opacity: .9,
 			depthWrite: false,
+			blending: 2,
 			sizeAttenuation: true
 		})]
 	});
@@ -419,44 +524,82 @@ function Falls({ drops }) {
 		] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("meshBasicMaterial", { color: "#ffffff" })]
 	});
 }
-function Sparks() {
-	const ref = (0, import_react.useRef)(null);
+function paintBodies(mesh, kind, max, dummy, tint) {
+	if (!mesh) return;
+	const list = liveBodies().filter((body) => body.kind === kind);
+	for (let i = 0; i < max; i += 1) {
+		const body = list[i];
+		if (!body) {
+			dummy.position.set(0, -8, 0);
+			dummy.scale.setScalar(.001);
+			dummy.rotation.set(0, 0, 0);
+		} else {
+			dummy.position.set(body.x, body.y, body.z);
+			const fade = kind === "spark" ? Math.max(.2, 1 - body.age / body.life) : 1;
+			const size = body.r * (kind === "charm" ? 2.5 : 2.2) * (body.held ? 1.28 : 1) * fade;
+			dummy.scale.setScalar(size);
+			dummy.rotation.set(body.age * 2.2, body.hue * .02, body.age * .8);
+			tint.set(body.color);
+			mesh.setColorAt(i, tint);
+		}
+		dummy.updateMatrix();
+		mesh.setMatrixAt(i, dummy.matrix);
+	}
+	mesh.instanceMatrix.needsUpdate = true;
+	if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+}
+function PhysVis({ fx }) {
+	const charms = (0, import_react.useRef)(null);
+	const sparksMesh = (0, import_react.useRef)(null);
 	const dummy = (0, import_react.useMemo)(() => new Object3D(), []);
 	const tint = (0, import_react.useMemo)(() => new Color("#ffffff"), []);
 	useFrame(() => {
-		const mesh = ref.current;
-		if (!mesh) return;
-		const now = Date.now();
-		for (let i = 0; i < 32; i += 1) {
-			const spark = sparks[i];
-			const age = spark ? (now - spark.at) / 1e3 : 99;
-			if (!spark || age < 0 || age > 1.35) {
-				dummy.position.set(0, -8, 0);
-				dummy.scale.setScalar(.001);
-			} else {
-				const t = age / 1.35;
-				const radius = .25 + t * 1.15;
-				dummy.position.set(Math.cos(spark.angle + t * 4.5) * radius, 1.15 + Math.sin(t * Math.PI) * 1.35, Math.sin(spark.angle + t * 4.5) * radius);
-				dummy.scale.setScalar(1 - t);
-				dummy.rotation.set(t * 6, spark.angle, 0);
-				tint.set(spark.color);
-				mesh.setColorAt(i, tint);
-			}
-			dummy.updateMatrix();
-			mesh.setMatrixAt(i, dummy.matrix);
-		}
-		mesh.instanceMatrix.needsUpdate = true;
-		if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+		paintBodies(charms.current, "charm", 8, dummy, tint);
+		paintBodies(sparksMesh.current, "spark", 32, dummy, tint);
 	});
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("instancedMesh", {
-		ref,
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("group", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("instancedMesh", {
+		ref: charms,
+		args: [
+			void 0,
+			void 0,
+			8
+		],
+		castShadow: fx.shadows,
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("icosahedronGeometry", { args: [1, fx.master ? 1 : 0] }), fx.charmTransmission > 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("meshPhysicalMaterial", {
+			color: "#ffffff",
+			transmission: fx.charmTransmission,
+			thickness: Math.max(.18, fx.thickness * .45),
+			ior: fx.ior,
+			iridescence: fx.iridescence,
+			clearcoat: fx.clearcoat,
+			sheen: fx.sheen,
+			roughness: .05,
+			metalness: .04,
+			emissive: "#ffffff",
+			emissiveIntensity: fx.emissiveIntensity * .4,
+			transparent: true
+		}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("meshStandardMaterial", {
+			color: "#ffffff",
+			roughness: .32,
+			metalness: .16,
+			emissive: "#ffffff",
+			emissiveIntensity: fx.emissiveIntensity * .3
+		})]
+	}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("instancedMesh", {
+		ref: sparksMesh,
 		args: [
 			void 0,
 			void 0,
 			32
 		],
-		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("octahedronGeometry", { args: [.16, 0] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("meshBasicMaterial", { color: "#ffffff" })]
-	});
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("octahedronGeometry", { args: [1, 0] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("meshStandardMaterial", {
+			color: "#ffffff",
+			emissive: "#ffffff",
+			emissiveIntensity: Math.max(1.1, fx.emissiveIntensity * 2),
+			roughness: .18,
+			toneMapped: false
+		})]
+	})] });
 }
 function Ladle() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("group", { children: [
@@ -518,39 +661,7 @@ function Ladle() {
 		})
 	] });
 }
-function Charms({ drops }) {
-	const ref = (0, import_react.useRef)(null);
-	useFrame(({ clock }) => {
-		const group = ref.current;
-		if (!group) return;
-		const t = clock.elapsedTime;
-		const live = drops.slice(-8);
-		for (let i = 0; i < 8; i += 1) {
-			const mesh = group.children[i];
-			const drop = live[i];
-			if (!drop) {
-				mesh.visible = false;
-				continue;
-			}
-			mesh.visible = true;
-			const hue = ingredientById(drop.ingredient).hue;
-			mesh.material.color.set(hslToHex(hue, .9, .58));
-			const a = t * .9 + i * .95;
-			const r = 1.08 + i % 3 * .18;
-			mesh.position.set(Math.cos(a) * r, 1.5 + Math.sin(t * 2.2 + i) * .24, Math.sin(a) * r);
-			mesh.rotation.set(a, a * .6, 0);
-			mesh.scale.setScalar(.9 + i % 2 * .35);
-		}
-	});
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("group", {
-		ref,
-		children: Array.from({ length: 8 }, (_, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("mesh", {
-			visible: false,
-			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("octahedronGeometry", { args: [.2, 0] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("meshBasicMaterial", { color: "#ffffff" })]
-		}, i))
-	});
-}
-function Bridges({ root }) {
+function Bridges({ root, fx }) {
 	const { gl } = useThree();
 	(0, import_react.useEffect)(() => {
 		setGrabStill(() => {
@@ -563,11 +674,17 @@ function Bridges({ root }) {
 		setExportGlb(async () => {
 			if (!root.current) return null;
 			const motion = rememberedMotion() ?? spinSnapshot();
+			const snap = physicsSnapshot();
 			root.current.userData = { conjure: {
 				angularVelocity: motion.angularVelocity,
 				axis: motion.axis,
 				damping: motion.damping,
-				spinCount: motion.spinCount
+				spinCount: motion.spinCount,
+				physicsSeed: snap.seed,
+				gravity: snap.gravity,
+				tier: fx.master ? "master" : fx.tier,
+				transmission: fx.transmission,
+				ior: fx.ior
 			} };
 			const frames = spinFrames(motion, 6, 36);
 			const times = [];
@@ -600,14 +717,22 @@ function Bridges({ root }) {
 			setExportGlb(null);
 			setEnterAR(null);
 		};
-	}, [gl, root]);
+	}, [
+		gl,
+		root,
+		fx
+	]);
 	return null;
 }
 var liquidVert = `
   varying vec2 vUv;
+  uniform sampler2D uSlosh;
   void main() {
     vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    vec3 p = position;
+    float h = texture2D(uSlosh, uv).r * 2.0 - 1.0;
+    p.z += h * 0.28;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
   }
 `;
 var liquidFrag = `
@@ -657,10 +782,90 @@ var skinFrag = `
     gl_FragColor = vec4(col, 1.0);
   }
 `;
+function RoomEnv() {
+	const { gl, scene } = useThree();
+	(0, import_react.useEffect)(() => {
+		const pmrem = new PMREMGenerator(gl);
+		const room = new RoomEnvironment();
+		const target = pmrem.fromScene(room, .04);
+		scene.environment = target.texture;
+		return () => {
+			scene.environment = null;
+			target.dispose();
+			pmrem.dispose();
+			room.traverse((obj) => {
+				const mesh = obj;
+				mesh.geometry?.dispose();
+				const mat = mesh.material;
+				if (Array.isArray(mat)) mat.forEach((item) => item.dispose());
+				else mat?.dispose();
+			});
+		};
+	}, [gl, scene]);
+	return null;
+}
+function Grade({ fx }) {
+	const { gl } = useThree();
+	(0, import_react.useEffect)(() => {
+		gl.outputColorSpace = SRGBColorSpace;
+		gl.toneMapping = fx.toneMapping === "AgX" ? 6 : 4;
+		gl.toneMappingExposure = fx.master ? 1.08 : 1.02;
+	}, [
+		gl,
+		fx.toneMapping,
+		fx.master
+	]);
+	return null;
+}
+function Post({ fx }) {
+	const { gl, scene, camera, size } = useThree();
+	const composer = (0, import_react.useRef)(null);
+	const ratio = (0, import_react.useRef)(0);
+	(0, import_react.useEffect)(() => {
+		const next = new EffectComposer(gl);
+		next.addPass(new RenderPass(scene, camera));
+		if (fx.bloom > 0) next.addPass(new UnrealBloomPass(new Vector2(size.width, size.height), fx.bloom, .42, .86));
+		if (fx.dof) next.addPass(new BokehPass(scene, camera, {
+			focus: 4.35,
+			aperture: 22e-5,
+			maxblur: .006
+		}));
+		next.setPixelRatio(gl.getPixelRatio());
+		next.setSize(size.width, size.height);
+		composer.current = next;
+		ratio.current = gl.getPixelRatio();
+		return () => {
+			next.dispose();
+			composer.current = null;
+		};
+	}, [
+		gl,
+		scene,
+		camera,
+		size.width,
+		size.height,
+		fx.bloom,
+		fx.dof
+	]);
+	useFrame(() => {
+		const current = composer.current;
+		if (!current) return;
+		const pixelRatio = gl.getPixelRatio();
+		if (pixelRatio !== ratio.current) {
+			ratio.current = pixelRatio;
+			current.setPixelRatio(pixelRatio);
+			current.setSize(size.width, size.height);
+		}
+		current.render();
+	}, 1);
+	return null;
+}
 function CauldronScene({ drops, vibe, form, quality, reduced }) {
 	const root = (0, import_react.useRef)(null);
+	const fx = (0, import_react.useMemo)(() => effectsFor(quality), [quality]);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Canvas, {
 		dpr: quality.dpr,
+		shadows: fx.shadows ? "soft" : false,
 		camera: {
 			position: [
 				0,
@@ -678,53 +883,77 @@ function CauldronScene({ drops, vibe, form, quality, reduced }) {
 		onCreated: ({ gl, camera }) => {
 			gl.setClearColor("#110e0c", 1);
 			camera.lookAt(0, 1.15, 0);
-			if (quality.master) {
-				gl.outputColorSpace = SRGBColorSpace;
-				gl.toneMapping = 4;
-				gl.toneMappingExposure = 1.05;
-			}
+			gl.outputColorSpace = SRGBColorSpace;
+			gl.toneMapping = fx.toneMapping === "AgX" ? 6 : 4;
+			gl.toneMappingExposure = fx.master ? 1.08 : 1.02;
 		},
-		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("group", {
-			ref: root,
-			children: [
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("ambientLight", { intensity: .85 }),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("pointLight", {
-					position: [
-						1.8,
-						2.8,
-						2.2
-					],
-					intensity: 28,
-					color: "#ffc8a0"
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("pointLight", {
-					position: [
-						-1.6,
-						1.6,
-						1.2
-					],
-					intensity: 12,
-					color: "#9ee0c4"
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("directionalLight", {
-					position: [
-						0,
-						3,
-						2
-					],
-					intensity: 1.4,
-					color: "#fff1df"
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Rig, {
-					drops,
-					vibe,
-					form,
-					reduced,
-					particles: quality.particles,
-					detail: quality.detail
-				})
-			]
-		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bridges, { root })]
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Grade, { fx }),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(RoomEnv, {}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PerformanceMonitor, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AdaptiveDpr, {}) }),
+			fx.shadows && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ContactShadows, {
+				position: [
+					0,
+					.01,
+					0
+				],
+				opacity: .45,
+				scale: 6.5,
+				blur: 2.4,
+				far: 3.4,
+				color: "#140e0b"
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("group", {
+				ref: root,
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("ambientLight", { intensity: .55 }),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("pointLight", {
+						position: [
+							1.8,
+							2.8,
+							2.2
+						],
+						intensity: 28,
+						color: "#ffc8a0"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("pointLight", {
+						position: [
+							-1.6,
+							1.6,
+							1.2
+						],
+						intensity: 12,
+						color: "#9ee0c4"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("directionalLight", {
+						position: [
+							2.2,
+							4.4,
+							2.2
+						],
+						intensity: 1.7,
+						color: "#fff1df",
+						castShadow: fx.shadows,
+						"shadow-mapSize-width": fx.master ? 1024 : 512,
+						"shadow-mapSize-height": fx.master ? 1024 : 512
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Rig, {
+						drops,
+						vibe,
+						form,
+						reduced,
+						particles: fx.particles,
+						detail: quality.detail,
+						fx
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bridges, {
+				root,
+				fx
+			}),
+			(fx.bloom > 0 || fx.dof) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Post, { fx })
+		]
 	});
 }
 //#endregion

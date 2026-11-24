@@ -53,7 +53,23 @@ test("mint metadata points at the loop and records the spin", () => {
   const attributes = meta.attributes as { trait_type: string; value: unknown }[];
   assert.deepEqual(
     attributes.map((item) => item.trait_type),
-    ["Angular velocity", "Axis", "Damping", "Spin count"],
+    [
+      "Angular velocity",
+      "Axis",
+      "Damping",
+      "Spin count",
+      "Gravity",
+      "Physics seed",
+      "Bodies",
+      "Transmission",
+      "IOR",
+      "Thickness",
+      "Iridescence",
+      "Emissive intensity",
+      "Bloom",
+      "Tone mapping",
+      "Tier",
+    ],
   );
   assert.equal(attributes[0].value, 1.25);
   assert.equal(attributes[2].value, 1.7);

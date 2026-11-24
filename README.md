@@ -7,8 +7,8 @@ Xero Emoji by Max Infeld, CC BY 4.0 — https://github.com/maximusmaximus/xeroem
 ## Try it
 
 1. Tap **Start**, or drop an ingredient. The first drop opens the cauldron.
-2. Drop Ember, Moss, Moon, Salt, Honey, Frost, Ink, or Spark. Keys 1–8 do the same. The brew takes that color, a charm stays in orbit, sparks fly, the ladle takes a spin, and you hear a tone. That button then leaves the stage.
-3. Drag the brew and let go to fling it. The ladle, the charms, and the pot take on angular velocity and ease back to rest. A phone that supports vibration ticks on the grab and on the throw.
+2. Drop Ember, Moss, Moon, Salt, Honey, Frost, Ink, or Spark. Keys 1–8 do the same. The brew takes that color, a charm falls into the pot, sparks fall with it, the surface ripples, the ladle takes a spin, and you hear a tone. That button then leaves the stage.
+3. Drag the brew and let go to fling it. The ladle, the charms, and the pot take on angular velocity and ease back to rest. A fling also knocks whatever is in the pot. Grab a charm or a spark with the pointer and throw it. Charms and sparks fall, bounce off each other and the walls, and settle. A phone that supports vibration ticks on the grab and on the throw.
 4. Tap the eye to bring the controls back. **Mic**, **Camera**, and **Motion** each kick the brew the moment you tap them: a swell, a color, and a spin. If the phone allows it, loudness, a color sample, and tilt keep feeding that motion. Only levels leave the phone. A used sensor button leaves with the rest of the tray.
 5. At **Master**, the eye also brings **Stir**, **Hue**, **Swirl**, **Bloom**, and **Freeze**. Each one changes the brew while you drag it. Freeze stops the spin. Letting go of a tool puts that slider away.
 6. Tap **Capture** for a still, a 6 second loop, and a recipe. The still is taken while the brew is still turning. The loop is the canvas for those 6 seconds, spin included. The GLB stores that same ease-out as an animation, plus the angular velocity, axis, damping, and spin count. **Share** copies a replay link that plays the spin again. **Remix** keeps the lineage.
@@ -32,7 +32,7 @@ Use earns XP, a daily streak, and badges. The same action only counts a few time
 
 **Next** stays on screen and names the following action. Short tips explain a step once. Dismiss a tip with X or a sideways swipe. A dismissed tip does not return on this device.
 
-**Master** raises the drawing buffer to the screen's device pixel ratio, capped by `MAX_TEXTURE_SIZE` and an 8 megapixel budget, and never above 3. Tools are stir, hue, swirl, bloom, and freeze. They sit on the stage, not over it, and each one moves or recolors the brew as you use it. The mesh and ember count step up with that tier.
+**Master** raises the drawing buffer to the screen's device pixel ratio, capped by `MAX_TEXTURE_SIZE` and an 8 megapixel budget, and never above 3. It is also the full materials path: glass transmission on the potion and crystal charms, iridescence, clearcoat, sheen, bloom, contact shadows, a little depth of field, and AgX tone mapping. Mid and high tiers use a lighter glass and bloom, ACES tone mapping, and no depth of field. A low-end phone stays on standard materials, skips bloom, shadows, and depth of field, and keeps fewer bodies so the cauldron can hold 60fps. Adaptive device pixel ratio eases the buffer down if a frame runs long. Tools are stir, hue, swirl, bloom, and freeze. They sit on the stage, not over it, and each one moves or recolors the brew as you use it. The mesh, ember, and body counts step up with the tier.
 
 The eye control is a Xero Emoji. It is the only control that stays after you have used the others. Open it and the ingredients, sensors, and tools come back. Close it and the stage is just the cauldron.
 
@@ -44,7 +44,7 @@ Connect the wallet already in the browser. You pay gas. The app does not hold a 
 
 `CHAIN.contract` in `src/conjure/chain.ts` is a public constant. It is empty in this build, so mint and transfer do not submit a transaction. When that constant is a contract address, mint calls `mint(address,string)` and transfer calls ERC-721 `transferFrom`, signed in the connected wallet through viem. Reads use a wagmi public client on the same testnet. Owned token ids come from `Transfer` logs. Local mint notes stay on this device.
 
-Mint metadata is a JSON file you can download from the capture. `animation_url` is the 6 second loop (a `data:video/webm` URL when the recording succeeded, otherwise the replay link that plays the same spin). `attributes` include angular velocity, axis, damping, and spin count. The still is the image. Robinhood Chain testnet only.
+Mint metadata is a JSON file you can download from the capture. `animation_url` is the 6 second loop (a `data:video/webm` URL when the recording succeeded, otherwise the replay link that plays the same spin). `attributes` include angular velocity, axis, damping, spin count, gravity, the physics seed, body count, transmission, IOR, thickness, iridescence, emissive intensity, bloom, tone mapping, and tier. `properties.physics` is the snapshot taken when the capture starts: seed, gravity, and each body's position and velocity. `properties.material` is the tier's glass and post settings at that same moment. The still is the image. Robinhood Chain testnet only.
 
 Daily mint touches are capped at 5 per device.
 
@@ -58,7 +58,7 @@ Mic, camera, and motion start only after you tap them. Raw audio and camera fram
 
 ## Architecture
 
-The cauldron is a React route. Brew math in `src/conjure/brew.ts` turns drops and sensor levels into hue, energy, and form. `src/conjure/scene.tsx` draws that with three.js on WebGL2. If WebGL2 is missing, `src/conjure/flat.tsx` draws the same brew on a 2D canvas. A WebGPU adapter, when present, only picks the quality tier.
+The cauldron is a React route. Brew math in `src/conjure/brew.ts` turns drops and sensor levels into hue, energy, and form. `src/conjure/scene.tsx` draws that with three.js on WebGL2: physical glass where the tier allows it, a room environment from three.js `RoomEnvironment` through PMREM, bloom and optional depth of field, and additive ember particles. `src/conjure/physics.ts` is a small seeded solver for charms, sparks, and the liquid slosh grid. `src/conjure/fx.ts` maps the quality tier onto those effects. If WebGL2 is missing, `src/conjure/flat.tsx` draws the same brew and the same falling bodies on a 2D canvas. A WebGPU adapter, when present, only picks the quality tier.
 
 Rooms poll `POST /api/conjure` about once a second. Tables live in `migrations/0002_conjure.sql` and `migrations/0003_board.sql`. Rows are unowned: there is no account system. Preview uses embedded Postgres when `DATABASE_URL` is unset. A hosted database uses that URL.
 
@@ -67,7 +67,7 @@ Creations, tips, XP, and the opt-in choice persist in `localStorage`. A share li
 ## Stack
 
 - TanStack Start, React 19, Vite
-- three.js and React Three Fiber
+- three.js and React Three Fiber, with a custom rigid-body step (no extra physics package)
 - Tailwind CSS v4
 - zustand
 - viem and wagmi for the testnet wallet
@@ -90,13 +90,13 @@ No secrets are required. Do not put a relayer key, Pinata JWT, or mainnet RPC in
 | `npm run build` | Production build, copies the embedded database assets, applies SQL when `DATABASE_URL` is set |
 | `npm run preview` | Serves the production build |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm test` | Unit tests, including brew, consent, XP, fling, and pixel-ratio caps |
+| `npm test` | Unit tests, including brew, consent, XP, fling, pixel-ratio caps, tier effects, and mint physics metadata |
 | `npm run db:migrate` | Applies `migrations/*.sql` when `DATABASE_URL` is set |
 | `node scripts/check-manifest.mjs` | Checks artwork licenses in `assets/MANIFEST.json` |
 
 ## Testing
 
-`npm test` covers brew mapping, consent defaults, the mint-touch cap, level thresholds, daily XP caps, streaks, tip dismissal, handle filtering, fling decay, and the master pixel-ratio cap.
+`npm test` covers brew mapping, consent defaults, the mint-touch cap, level thresholds, daily XP caps, streaks, tip dismissal, handle filtering, fling decay, the master pixel-ratio cap, the tier-to-effects map, and the physics and material fields on mint metadata.
 
 The contract in `contracts/Conjure.sol` is a minimal ERC-721 with a fixed 5% ERC-2981 royalty and `transferFrom`. This environment does not run Foundry, so that file is not executed here.
 
@@ -111,6 +111,7 @@ Code in this app is MIT (`LICENSE`).
 | Asset | License |
 | --- | --- |
 | Cauldron, brew, and forms | CC0-1.0. Drawn in the browser. No external mesh. |
+| Room lighting | MIT. three.js `RoomEnvironment`, baked to a PMREM in the browser. No downloaded HDRI. |
 | Icons | Xero Emoji by Max Infeld, CC BY 4.0. https://github.com/maximusmaximus/xeroemoji |
 
 The footer uses the Xero laptop emoji as the link to https://github.com/maximusmaximus/conjure.

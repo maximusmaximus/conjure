@@ -1,4 +1,5 @@
 import { o as __toESM, r as __exportAll, t as __commonJSMin } from "../../_runtime.mjs";
+import { t as _extends } from "../babel__runtime.mjs";
 //#region node_modules/react/cjs/react.production.js
 /**
 * @license React
@@ -54799,7 +54800,7 @@ function attempt$1(step) {
 		console.warn("[R3F] Error while unmounting root; teardown may be incomplete:", error);
 	}
 }
-var context = /* @__PURE__ */ import_react.createContext(null);
+var context$1 = /* @__PURE__ */ import_react.createContext(null);
 var createStore = (invalidate, advance) => {
 	const rootStore = createWithEqualityFn((set, get) => {
 		const position = new Vector3();
@@ -54998,7 +54999,7 @@ var createStore = (invalidate, advance) => {
 * @see https://docs.pmnd.rs/react-three-fiber/api/hooks#usestore
 */
 function useStore() {
-	const store = import_react.useContext(context);
+	const store = import_react.useContext(context$1);
 	if (!store) throw new Error("R3F: Hooks can only be used within the Canvas component!");
 	return store;
 }
@@ -61209,7 +61210,7 @@ function Provider({ store, children, onCreated, rootElement }) {
 		if (onCreated) onCreated(state);
 		if (!store.getState().events.connected) state.events.connect == null || state.events.connect(rootElement);
 	}, []);
-	return /*#__PURE__*/ (0, import_jsx_runtime.jsx)(context.Provider, {
+	return /*#__PURE__*/ (0, import_jsx_runtime.jsx)(context$1.Provider, {
 		value: store,
 		children
 	});
@@ -61641,4 +61642,288 @@ function Canvas(props) {
 	return /*#__PURE__*/ (0, import_jsx_runtime.jsx)(h, { children: /*#__PURE__*/ (0, import_jsx_runtime.jsx)(CanvasImpl, { ...props }) });
 }
 //#endregion
-export { Scene as A, Object3D as C, RGBAFormat as D, QuaternionKeyframeTrack as E, require_with_selector as F, require_jsx_runtime as I, require_react as L, Vector2 as M, Vector3 as N, RepeatWrapping as O, createStore$1 as P, NearestMipmapNearestFilter as S, Quaternion as T, MathUtils as _, BufferAttribute as a, NearestFilter as b, Color as c, ImageUtils as d, InterpolateDiscrete as f, LinearMipmapNearestFilter as g, LinearMipmapLinearFilter as h, AnimationClip as i, TextureSource as j, SRGBColorSpace as k, CompressedTexture as l, LinearFilter as m, useFrame as n, CanvasTexture as o, InterpolateLinear as p, useThree as r, ClampToEdgeWrapping as s, Canvas as t, Euler as u, Matrix4 as v, PropertyBinding as w, NearestMipmapLinearFilter as x, MirroredRepeatWrapping as y };
+//#region node_modules/three-stdlib/shaders/HorizontalBlurShader.js
+var HorizontalBlurShader = {
+	uniforms: {
+		tDiffuse: { value: null },
+		h: { value: 1 / 512 }
+	},
+	vertexShader: `
+      varying vec2 vUv;
+
+      void main() {
+
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+      }
+  `,
+	fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float h;
+
+    varying vec2 vUv;
+
+    void main() {
+
+    	vec4 sum = vec4( 0.0 );
+
+    	sum += texture2D( tDiffuse, vec2( vUv.x - 4.0 * h, vUv.y ) ) * 0.051;
+    	sum += texture2D( tDiffuse, vec2( vUv.x - 3.0 * h, vUv.y ) ) * 0.0918;
+    	sum += texture2D( tDiffuse, vec2( vUv.x - 2.0 * h, vUv.y ) ) * 0.12245;
+    	sum += texture2D( tDiffuse, vec2( vUv.x - 1.0 * h, vUv.y ) ) * 0.1531;
+    	sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y ) ) * 0.1633;
+    	sum += texture2D( tDiffuse, vec2( vUv.x + 1.0 * h, vUv.y ) ) * 0.1531;
+    	sum += texture2D( tDiffuse, vec2( vUv.x + 2.0 * h, vUv.y ) ) * 0.12245;
+    	sum += texture2D( tDiffuse, vec2( vUv.x + 3.0 * h, vUv.y ) ) * 0.0918;
+    	sum += texture2D( tDiffuse, vec2( vUv.x + 4.0 * h, vUv.y ) ) * 0.051;
+
+    	gl_FragColor = sum;
+
+    }
+  `
+};
+//#endregion
+//#region node_modules/three-stdlib/shaders/VerticalBlurShader.js
+var VerticalBlurShader = {
+	uniforms: {
+		tDiffuse: { value: null },
+		v: { value: 1 / 512 }
+	},
+	vertexShader: `
+    varying vec2 vUv;
+
+    void main() {
+
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+    }
+  `,
+	fragmentShader: `
+
+  uniform sampler2D tDiffuse;
+  uniform float v;
+
+  varying vec2 vUv;
+
+  void main() {
+
+    vec4 sum = vec4( 0.0 );
+
+    sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y - 4.0 * v ) ) * 0.051;
+    sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y - 3.0 * v ) ) * 0.0918;
+    sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y - 2.0 * v ) ) * 0.12245;
+    sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y - 1.0 * v ) ) * 0.1531;
+    sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y ) ) * 0.1633;
+    sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y + 1.0 * v ) ) * 0.1531;
+    sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y + 2.0 * v ) ) * 0.12245;
+    sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y + 3.0 * v ) ) * 0.0918;
+    sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y + 4.0 * v ) ) * 0.051;
+
+    gl_FragColor = sum;
+
+  }
+  `
+};
+//#endregion
+//#region node_modules/@react-three/drei/core/ContactShadows.js
+var ContactShadows = /* @__PURE__ */ import_react.forwardRef(({ scale = 10, frames = Infinity, opacity = 1, width = 1, height = 1, blur = 1, near = 0, far = 10, resolution = 512, smooth = true, color = "#000000", depthWrite = false, renderOrder, ...props }, fref) => {
+	const ref = import_react.useRef(null);
+	const scene = useThree((state) => state.scene);
+	const gl = useThree((state) => state.gl);
+	const shadowCamera = import_react.useRef(null);
+	width = width * (Array.isArray(scale) ? scale[0] : scale || 1);
+	height = height * (Array.isArray(scale) ? scale[1] : scale || 1);
+	const [renderTarget, planeGeometry, depthMaterial, blurPlane, horizontalBlurMaterial, verticalBlurMaterial, renderTargetBlur] = import_react.useMemo(() => {
+		const renderTarget = new WebGLRenderTarget(resolution, resolution);
+		const renderTargetBlur = new WebGLRenderTarget(resolution, resolution);
+		renderTargetBlur.texture.generateMipmaps = renderTarget.texture.generateMipmaps = false;
+		const planeGeometry = new PlaneGeometry(width, height).rotateX(Math.PI / 2);
+		const blurPlane = new Mesh(planeGeometry);
+		const depthMaterial = new MeshDepthMaterial();
+		depthMaterial.depthTest = depthMaterial.depthWrite = false;
+		depthMaterial.onBeforeCompile = (shader) => {
+			shader.uniforms = {
+				...shader.uniforms,
+				ucolor: { value: new Color(color) }
+			};
+			shader.fragmentShader = shader.fragmentShader.replace(`void main() {`, `uniform vec3 ucolor;
+           void main() {
+          `);
+			shader.fragmentShader = shader.fragmentShader.replace("vec4( vec3( 1.0 - fragCoordZ ), opacity );", "vec4( ucolor * fragCoordZ * 2.0, ( 1.0 - fragCoordZ ) * 1.0 );");
+		};
+		const horizontalBlurMaterial = new ShaderMaterial(HorizontalBlurShader);
+		const verticalBlurMaterial = new ShaderMaterial(VerticalBlurShader);
+		verticalBlurMaterial.depthTest = horizontalBlurMaterial.depthTest = false;
+		return [
+			renderTarget,
+			planeGeometry,
+			depthMaterial,
+			blurPlane,
+			horizontalBlurMaterial,
+			verticalBlurMaterial,
+			renderTargetBlur
+		];
+	}, [
+		resolution,
+		width,
+		height,
+		scale,
+		color
+	]);
+	const blurShadows = (blur) => {
+		blurPlane.visible = true;
+		blurPlane.material = horizontalBlurMaterial;
+		horizontalBlurMaterial.uniforms.tDiffuse.value = renderTarget.texture;
+		horizontalBlurMaterial.uniforms.h.value = blur * 1 / 256;
+		gl.setRenderTarget(renderTargetBlur);
+		gl.render(blurPlane, shadowCamera.current);
+		blurPlane.material = verticalBlurMaterial;
+		verticalBlurMaterial.uniforms.tDiffuse.value = renderTargetBlur.texture;
+		verticalBlurMaterial.uniforms.v.value = blur * 1 / 256;
+		gl.setRenderTarget(renderTarget);
+		gl.render(blurPlane, shadowCamera.current);
+		blurPlane.visible = false;
+	};
+	let count = 0;
+	let initialBackground;
+	let initialOverrideMaterial;
+	useFrame(() => {
+		if (shadowCamera.current && (frames === Infinity || count < frames)) {
+			count++;
+			initialBackground = scene.background;
+			initialOverrideMaterial = scene.overrideMaterial;
+			ref.current.visible = false;
+			scene.background = null;
+			scene.overrideMaterial = depthMaterial;
+			gl.setRenderTarget(renderTarget);
+			gl.render(scene, shadowCamera.current);
+			blurShadows(blur);
+			if (smooth) blurShadows(blur * .4);
+			gl.setRenderTarget(null);
+			ref.current.visible = true;
+			scene.overrideMaterial = initialOverrideMaterial;
+			scene.background = initialBackground;
+		}
+	});
+	import_react.useImperativeHandle(fref, () => ref.current, []);
+	return /*#__PURE__*/ import_react.createElement("group", _extends({ "rotation-x": Math.PI / 2 }, props, { ref }), /*#__PURE__*/ import_react.createElement("mesh", {
+		renderOrder,
+		geometry: planeGeometry,
+		scale: [
+			1,
+			-1,
+			1
+		],
+		rotation: [
+			-Math.PI / 2,
+			0,
+			0
+		]
+	}, /*#__PURE__*/ import_react.createElement("meshBasicMaterial", {
+		transparent: true,
+		map: renderTarget.texture,
+		opacity,
+		depthWrite
+	})), /*#__PURE__*/ import_react.createElement("orthographicCamera", {
+		ref: shadowCamera,
+		args: [
+			-width / 2,
+			width / 2,
+			height / 2,
+			-height / 2,
+			near,
+			far
+		]
+	}));
+});
+//#endregion
+//#region node_modules/@react-three/drei/core/AdaptiveDpr.js
+function AdaptiveDpr({ pixelated }) {
+	const gl = useThree((state) => state.gl);
+	const active = useThree((state) => state.internal.active);
+	const current = useThree((state) => state.performance.current);
+	const initialDpr = useThree((state) => state.viewport.initialDpr);
+	const setDpr = useThree((state) => state.setDpr);
+	import_react.useEffect(() => {
+		const domElement = gl.domElement;
+		return () => {
+			if (active) setDpr(initialDpr);
+			if (pixelated && domElement) domElement.style.imageRendering = "auto";
+		};
+	}, []);
+	import_react.useEffect(() => {
+		setDpr(current * initialDpr);
+		if (pixelated && gl.domElement) gl.domElement.style.imageRendering = current === 1 ? "auto" : "pixelated";
+	}, [current]);
+	return null;
+}
+//#endregion
+//#region node_modules/@react-three/drei/core/PerformanceMonitor.js
+var context = /* @__PURE__ */ (0, import_react.createContext)(null);
+function PerformanceMonitor({ iterations = 10, ms = 250, threshold = .75, step = .1, factor: _factor = .5, flipflops = Infinity, bounds = (refreshrate) => refreshrate > 100 ? [60, 100] : [40, 60], onIncline, onDecline, onChange, onFallback, children }) {
+	const decimalPlacesRatio = Math.pow(10, 0);
+	const [api, _] = (0, import_react.useState)(() => ({
+		fps: 0,
+		index: 0,
+		factor: _factor,
+		flipped: 0,
+		refreshrate: 0,
+		fallback: false,
+		frames: [],
+		averages: [],
+		subscriptions: /* @__PURE__ */ new Map(),
+		subscribe: (ref) => {
+			const key = Symbol();
+			api.subscriptions.set(key, ref.current);
+			return () => void api.subscriptions.delete(key);
+		}
+	}));
+	let lastFactor = 0;
+	useFrame(() => {
+		const { frames, averages } = api;
+		if (api.fallback) return;
+		if (averages.length < iterations) {
+			frames.push(performance.now());
+			const msPassed = frames[frames.length - 1] - frames[0];
+			if (msPassed >= ms) {
+				api.fps = Math.round(frames.length / msPassed * 1e3 * decimalPlacesRatio) / decimalPlacesRatio;
+				api.refreshrate = Math.max(api.refreshrate, api.fps);
+				averages[api.index++ % iterations] = api.fps;
+				if (averages.length === iterations) {
+					const [lower, upper] = bounds(api.refreshrate);
+					const upperBounds = averages.filter((value) => value >= upper);
+					const lowerBounds = averages.filter((value) => value < lower);
+					if (upperBounds.length > iterations * threshold) {
+						api.factor = Math.min(1, api.factor + step);
+						api.flipped++;
+						if (onIncline) onIncline(api);
+						api.subscriptions.forEach((value) => value.onIncline && value.onIncline(api));
+					}
+					if (lowerBounds.length > iterations * threshold) {
+						api.factor = Math.max(0, api.factor - step);
+						api.flipped++;
+						if (onDecline) onDecline(api);
+						api.subscriptions.forEach((value) => value.onDecline && value.onDecline(api));
+					}
+					if (lastFactor !== api.factor) {
+						lastFactor = api.factor;
+						if (onChange) onChange(api);
+						api.subscriptions.forEach((value) => value.onChange && value.onChange(api));
+					}
+					if (api.flipped > flipflops && !api.fallback) {
+						api.fallback = true;
+						if (onFallback) onFallback(api);
+						api.subscriptions.forEach((value) => value.onFallback && value.onFallback(api));
+					}
+					api.averages = [];
+				}
+				api.frames = [];
+			}
+		}
+	});
+	return /*#__PURE__*/ import_react.createElement(context.Provider, { value: api }, children);
+}
+//#endregion
+export { UniformsUtils as $, MeshBasicMaterial as A, PointLight as B, InterpolateLinear as C, MathUtils as D, LinearMipmapNearestFilter as E, NearestFilter as F, RGBAFormat as G, Quaternion as H, NearestMipmapLinearFilter as I, SRGBColorSpace as J, Raycaster as K, NearestMipmapNearestFilter as L, MeshLambertMaterial as M, MeshStandardMaterial as N, Matrix4 as O, MirroredRepeatWrapping as P, Timer as Q, Object3D as R, InterpolateDiscrete as S, LinearMipmapLinearFilter as T, QuaternionKeyframeTrack as U, PropertyBinding as V, RGBADepthPacking as W, ShaderMaterial as X, Scene as Y, TextureSource as Z, Euler as _, useFrame as a, require_jsx_runtime as at, ImageUtils as b, AnimationClip as c, BufferGeometry as d, Vector2 as et, CanvasTexture as f, DataTexture as g, CompressedTexture as h, Canvas as i, require_with_selector as it, MeshDepthMaterial as j, Mesh as k, BoxGeometry as l, Color as m, AdaptiveDpr as n, WebGLRenderTarget as nt, useThree as o, require_react as ot, ClampToEdgeWrapping as p, RepeatWrapping as q, ContactShadows as r, createStore$1 as rt, PMREMGenerator as s, PerformanceMonitor as t, Vector3 as tt, BufferAttribute as u, Float32BufferAttribute as v, LinearFilter as w, InstancedMesh as x, HalfFloatType as y, OrthographicCamera as z };

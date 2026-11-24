@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { blendSensors, computeBrew, hslToHex, ingredientById, type Drop, type Vibe } from "./brew";
 import { liveSensor, masterMix, punch, punchStrength, remoteSensor, setGrabStill, toolTouch } from "./live";
+import { localGravity, liveBodies, sloshGrid, stepBrewPhysics } from "./physics";
 import { spin } from "./spin";
 
 /** Drawn cauldron used when WebGL is missing. Same brew math as the 3D stage. */
@@ -22,7 +23,19 @@ export function FlatBrew({
     if (!ctx) return;
     let frame = 0;
     let time = 0;
+    let stamp = performance.now();
     const draw = () => {
+      const now = performance.now();
+      const dt = Math.min(0.05, (now - stamp) / 1000);
+      stamp = now;
+      const leanX = masterMix.freeze ? 0 : liveSensor.tiltY * 0.7 + remoteSensor.tiltY * 0.2;
+      const leanZ = masterMix.freeze ? 0 : liveSensor.tiltX * 0.7 + remoteSensor.tiltX * 0.2;
+      stepBrewPhysics(dt, {
+        gravity: localGravity(spin.x + leanX, spin.y, spin.z + leanZ),
+        tiltX: leanX,
+        tiltZ: leanZ,
+        shake: masterMix.freeze || reduced ? 0 : liveSensor.shake,
+      });
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const width = canvas.clientWidth || 320;
       const height = canvas.clientHeight || 480;
@@ -72,7 +85,11 @@ export function FlatBrew({
       ctx.fillStyle = color;
       ctx.globalAlpha = 0.95;
       ctx.beginPath();
-      ctx.ellipse(cx, cy - radius * 0.05, radius * 0.82, radius * 0.22, spin.y, 0, Math.PI * 2);
+      const grid = sloshGrid();
+      let wave = 0;
+      for (let i = 0; i < grid.h.length; i += 1) wave += Math.abs(grid.h[i]);
+      wave = grid.h.length ? wave / grid.h.length : 0;
+      ctx.ellipse(cx, cy - radius * 0.05, radius * (0.82 + wave * 0.35), radius * (0.22 + wave * 0.5), spin.y, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1;
       ctx.save();
@@ -89,15 +106,21 @@ export function FlatBrew({
       ctx.arc(radius * 1.35, -radius * 0.95, Math.max(8, radius * 0.16), 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
-      drops.slice(-8).forEach((drop, i) => {
-        const hue = ingredientById(drop.ingredient).hue;
-        const a = time * 1.4 + i * 0.9 + spin.y;
-        const orbit = radius * (1.15 + (i % 3) * 0.18);
-        ctx.fillStyle = hslToHex(hue, 0.85, 0.55);
+      for (const body of liveBodies()) {
+        const fade = body.kind === "spark" ? Math.max(0, 1 - body.age / body.life) : 0.95;
+        ctx.globalAlpha = fade;
+        ctx.fillStyle = body.color;
         ctx.beginPath();
-        ctx.arc(cx + Math.cos(a) * orbit, cy - radius * 0.35 + Math.sin(a) * orbit * 0.45, Math.max(6, radius * 0.12), 0, Math.PI * 2);
+        ctx.arc(
+          cx + body.x * radius * 1.15,
+          cy - body.y * radius * 0.48,
+          Math.max(4, body.r * radius * 1.6),
+          0,
+          Math.PI * 2,
+        );
         ctx.fill();
-      });
+      }
+      ctx.globalAlpha = 1;
       frame = requestAnimationFrame(draw);
     };
     frame = requestAnimationFrame(draw);

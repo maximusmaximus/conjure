@@ -1,6 +1,6 @@
-import { I as require_jsx_runtime } from "../_libs/@react-three/fiber+[...].mjs";
-import { n as PageFrame } from "./app-CUQQBAqP.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/privacy-yQURo6uz.js
+import { at as require_jsx_runtime } from "../_libs/@react-three/drei+[...].mjs";
+import { n as PageFrame } from "./app-36nkK2us.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/privacy-DM73SlAk.js
 var import_jsx_runtime = require_jsx_runtime();
 function PrivacyPage() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(PageFrame, {

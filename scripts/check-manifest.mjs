@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 const root = new URL("..", import.meta.url).pathname;
 const manifest = JSON.parse(readFileSync(join(root, "assets/MANIFEST.json"), "utf8"));
-const allowed = new Set(["CC0-1.0", "CC-BY-4.0"]);
+const allowed = new Set(["CC0-1.0", "CC-BY-4.0", "MIT"]);
 const files = new Map(manifest.assets.map((asset) => [asset.path, asset]));
 const dir = join(root, "public/xeroemoji/svg");
 const errors = [];

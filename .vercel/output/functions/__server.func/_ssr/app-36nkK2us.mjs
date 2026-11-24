@@ -1,12 +1,12 @@
 import { o as __toESM } from "../_runtime.mjs";
-import { I as require_jsx_runtime, L as require_react } from "../_libs/@react-three/fiber+[...].mjs";
+import { at as require_jsx_runtime, ot as require_react } from "../_libs/@react-three/drei+[...].mjs";
 import { y as Link } from "../_libs/@tanstack/react-router+[...].mjs";
-import { _ as cleanName, a as cleanHandle, c as emptyProgress, d as loadProgress, f as nextStepId, g as xpToNext, h as walletUnlocked, i as award, l as loadBoardPrefs, m as saveProgress, o as currentTip, p as saveBoardPrefs, r as LEVELS, s as dismissTip, u as loadDismissedTips, v as resolveVotes } from "./router-DdzyY9hZ.mjs";
+import { _ as cleanName, a as cleanHandle, c as emptyProgress, d as loadProgress, f as nextStepId, g as xpToNext, h as walletUnlocked, i as award, l as loadBoardPrefs, m as saveProgress, o as currentTip, p as saveBoardPrefs, r as LEVELS, s as dismissTip, u as loadDismissedTips, v as resolveVotes } from "./router-BTLI5VI2.mjs";
 import { t as require_xeroemoji } from "../_libs/xeroemoji.mjs";
 import { Ht as parseAbiItem, n as getPublicClient, pn as erc721Abi, t as createConfig } from "../_libs/@wagmi/core+[...].mjs";
 import { i as defineChain, n as custom, r as createWalletClient, t as http } from "../_libs/viem.mjs";
 import { t as create } from "../_libs/zustand.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/app-CUQQBAqP.js
+//#region node_modules/.nitro/vite/services/ssr/assets/app-36nkK2us.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var import_xeroemoji = require_xeroemoji();
@@ -426,7 +426,7 @@ var MAX = 8;
 function clamp(n, a, b) {
 	return Math.max(a, Math.min(b, n));
 }
-function round(n) {
+function round$1(n) {
 	return Math.round(n * 1e3) / 1e3;
 }
 /** Add angular velocity in radians per second. */
@@ -465,23 +465,23 @@ function spinSnapshot() {
 		spin.vz / speed
 	];
 	return {
-		angularVelocity: round(speed),
+		angularVelocity: round$1(speed),
 		axis: [
-			round(axis[0]),
-			round(axis[1]),
-			round(axis[2])
+			round$1(axis[0]),
+			round$1(axis[1]),
+			round$1(axis[2])
 		],
-		damping: round(spin.damping),
-		spinCount: round(spin.spins),
+		damping: round$1(spin.damping),
+		spinCount: round$1(spin.spins),
 		velocity: [
-			round(spin.vx),
-			round(spin.vy),
-			round(spin.vz)
+			round$1(spin.vx),
+			round$1(spin.vy),
+			round$1(spin.vz)
 		],
 		angle: [
-			round(spin.x),
-			round(spin.y),
-			round(spin.z)
+			round$1(spin.x),
+			round$1(spin.y),
+			round$1(spin.z)
 		]
 	};
 }
@@ -538,6 +538,25 @@ function brewMetadata(input) {
 		1,
 		0
 	];
+	const physics = input.physics ?? {
+		seed: 0,
+		gravity: 9.8,
+		bodies: []
+	};
+	const material = input.material ?? {
+		transmission: 0,
+		ior: 1.4,
+		thickness: 0,
+		iridescence: 0,
+		clearcoat: 0,
+		sheen: 0,
+		emissiveIntensity: 0,
+		bloom: 0,
+		toneMapping: "ACES",
+		tier: "mid",
+		dof: false,
+		shadows: false
+	};
 	return {
 		name: input.title,
 		description: "A Conjure brew.",
@@ -559,11 +578,533 @@ function brewMetadata(input) {
 			{
 				trait_type: "Spin count",
 				value: note?.spinCount ?? 0
+			},
+			{
+				trait_type: "Gravity",
+				value: physics.gravity
+			},
+			{
+				trait_type: "Physics seed",
+				value: physics.seed
+			},
+			{
+				trait_type: "Bodies",
+				value: physics.bodies.length
+			},
+			{
+				trait_type: "Transmission",
+				value: material.transmission
+			},
+			{
+				trait_type: "IOR",
+				value: material.ior
+			},
+			{
+				trait_type: "Thickness",
+				value: material.thickness
+			},
+			{
+				trait_type: "Iridescence",
+				value: material.iridescence
+			},
+			{
+				trait_type: "Emissive intensity",
+				value: material.emissiveIntensity
+			},
+			{
+				trait_type: "Bloom",
+				value: material.bloom
+			},
+			{
+				trait_type: "Tone mapping",
+				value: material.toneMapping
+			},
+			{
+				trait_type: "Tier",
+				value: material.tier
 			}
 		],
+		properties: {
+			physics,
+			material
+		},
 		vibe: input.vibe,
 		chainId: input.chainId,
 		royaltyBps: input.royaltyBps
+	};
+}
+function effectsFor(quality) {
+	const particles = quality.particles;
+	if (quality.master) return {
+		tier: "high",
+		master: true,
+		bodies: 8,
+		sparkBodies: 28,
+		particles: Math.max(particles, 640),
+		slosh: 24,
+		transmission: .94,
+		charmTransmission: .9,
+		thickness: 1.45,
+		ior: 1.48,
+		iridescence: .85,
+		clearcoat: 1,
+		sheen: .4,
+		emissiveIntensity: .72,
+		bloom: .62,
+		dof: true,
+		shadows: true,
+		adaptiveDpr: true,
+		toneMapping: "AgX"
+	};
+	if (quality.tier === "low") return {
+		tier: "low",
+		master: false,
+		bodies: 4,
+		sparkBodies: 8,
+		particles: Math.min(particles, 70),
+		slosh: 12,
+		transmission: 0,
+		charmTransmission: 0,
+		thickness: 0,
+		ior: 1.4,
+		iridescence: 0,
+		clearcoat: .15,
+		sheen: 0,
+		emissiveIntensity: .35,
+		bloom: 0,
+		dof: false,
+		shadows: false,
+		adaptiveDpr: true,
+		toneMapping: "ACES"
+	};
+	if (quality.tier === "high") return {
+		tier: "high",
+		master: false,
+		bodies: 8,
+		sparkBodies: 20,
+		particles,
+		slosh: 20,
+		transmission: .72,
+		charmTransmission: .55,
+		thickness: 1.1,
+		ior: 1.45,
+		iridescence: .55,
+		clearcoat: .8,
+		sheen: .25,
+		emissiveIntensity: .55,
+		bloom: .32,
+		dof: false,
+		shadows: true,
+		adaptiveDpr: true,
+		toneMapping: "ACES"
+	};
+	return {
+		tier: "mid",
+		master: false,
+		bodies: 6,
+		sparkBodies: 14,
+		particles,
+		slosh: 16,
+		transmission: .48,
+		charmTransmission: .32,
+		thickness: .7,
+		ior: 1.42,
+		iridescence: .28,
+		clearcoat: .55,
+		sheen: .15,
+		emissiveIntensity: .45,
+		bloom: .16,
+		dof: false,
+		shadows: true,
+		adaptiveDpr: true,
+		toneMapping: "ACES"
+	};
+}
+function materialNote(fx) {
+	return {
+		transmission: fx.transmission,
+		ior: fx.ior,
+		thickness: fx.thickness,
+		iridescence: fx.iridescence,
+		clearcoat: fx.clearcoat,
+		sheen: fx.sheen,
+		emissiveIntensity: fx.emissiveIntensity,
+		bloom: fx.bloom,
+		toneMapping: fx.toneMapping,
+		tier: fx.master ? "master" : fx.tier,
+		dof: fx.dof,
+		shadows: fx.shadows
+	};
+}
+/** Tuned rigid bodies for charms and sparks. No WASM. Deterministic from a seed. */
+var GRAVITY = 9.8;
+/** World-down gravity, expressed in the brew's local axes (Euler XYZ). */
+function localGravity(rx, ry, rz, g = GRAVITY) {
+	const c1 = Math.cos(rx / 2);
+	const s1 = Math.sin(rx / 2);
+	const c2 = Math.cos(ry / 2);
+	const s2 = Math.sin(ry / 2);
+	const c3 = Math.cos(rz / 2);
+	const s3 = Math.sin(rz / 2);
+	const ix = -(s1 * c2 * c3 + c1 * s2 * s3);
+	const iy = -(c1 * s2 * c3 - s1 * c2 * s3);
+	const iz = -(c1 * c2 * s3 + s1 * s2 * c3);
+	const iw = c1 * c2 * c3 - s1 * s2 * s3;
+	const vy = -g;
+	const tx = -2 * iz * vy;
+	const tz = 2 * ix * vy;
+	return [
+		iw * tx + iy * tz,
+		vy + iz * tx - ix * tz,
+		iw * tz - iy * tx
+	];
+}
+var FLOOR = .42;
+var RIM = 1.18;
+var bodies = [];
+var seed = 1;
+var rngState = 1;
+var maxCharms = 8;
+var maxSparks = 16;
+var slosh = createSlosh(16);
+var heldId = null;
+var rayView = null;
+var seenBurst = -1;
+function mulberry() {
+	rngState = rngState + 1831565813 >>> 0;
+	let t = rngState;
+	t = Math.imul(t ^ t >>> 15, t | 1);
+	t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+	return ((t ^ t >>> 14) >>> 0) / 4294967296;
+}
+function round(n) {
+	return Math.round(n * 1e3) / 1e3;
+}
+function wallRadius(y) {
+	const t = Math.max(0, Math.min(1, (y - .28) / .95));
+	return .22 + Math.sin(t * Math.PI) * .62;
+}
+function createSlosh(n) {
+	return {
+		n,
+		h: new Float32Array(n * n),
+		v: new Float32Array(n * n)
+	};
+}
+function resetPhysics(nextSeed = 1) {
+	bodies.length = 0;
+	seed = nextSeed >>> 0 || 1;
+	rngState = seed;
+	heldId = null;
+	seenBurst = -1;
+	slosh = createSlosh(slosh.n);
+}
+function configurePhysics(opts) {
+	maxCharms = opts.charms;
+	maxSparks = opts.sparks;
+	if (slosh.n !== opts.slosh) slosh = createSlosh(opts.slosh);
+	trim();
+}
+function sloshGrid() {
+	return slosh;
+}
+function liveBodies() {
+	return bodies;
+}
+function setRayView(fn) {
+	rayView = fn;
+}
+function trim() {
+	let charms = 0;
+	let sparks = 0;
+	for (let i = bodies.length - 1; i >= 0; i -= 1) if (bodies[i].kind === "charm") {
+		charms += 1;
+		if (charms > maxCharms) bodies.splice(i, 1);
+	} else {
+		sparks += 1;
+		if (sparks > maxSparks) bodies.splice(i, 1);
+	}
+}
+function syncCharms(drops) {
+	const live = drops.slice(-maxCharms);
+	const ids = new Set(live.map((drop) => drop.id));
+	for (let i = bodies.length - 1; i >= 0; i -= 1) if (bodies[i].kind === "charm" && !ids.has(bodies[i].id)) bodies.splice(i, 1);
+	for (const drop of live) {
+		if (bodies.some((body) => body.id === drop.id)) continue;
+		bodies.push({
+			id: drop.id,
+			kind: "charm",
+			x: (mulberry() - .5) * .28,
+			y: 2.35,
+			z: (mulberry() - .5) * .28,
+			vx: (mulberry() - .5) * .9,
+			vy: .35,
+			vz: (mulberry() - .5) * .9,
+			r: .1 + mulberry() * .05,
+			age: 0,
+			life: 1e6,
+			held: false,
+			color: drop.color,
+			hue: drop.hue
+		});
+	}
+	trim();
+}
+function noteBurst(at, color, count) {
+	if (at === seenBurst) return;
+	seenBurst = at;
+	const room = maxSparks - bodies.filter((body) => body.kind === "spark").length;
+	const n = Math.max(0, Math.min(count, room, maxSparks));
+	for (let i = 0; i < n; i += 1) {
+		const angle = mulberry() * Math.PI * 2;
+		const speed = 1.3 + mulberry() * 2.2;
+		bodies.push({
+			id: `spark-${seed}-${at}-${i}`,
+			kind: "spark",
+			x: Math.cos(angle) * .12,
+			y: 1.28 + mulberry() * .18,
+			z: Math.sin(angle) * .12,
+			vx: Math.cos(angle) * speed,
+			vy: 1.8 + mulberry() * 2.1,
+			vz: Math.sin(angle) * speed,
+			r: .045,
+			age: 0,
+			life: 1.5 + mulberry() * .7,
+			held: false,
+			color,
+			hue: 40
+		});
+	}
+}
+function stepBodies(dt, gravity) {
+	const d = Math.min(.033, Math.max(0, dt));
+	if (d === 0) return;
+	for (const body of bodies) {
+		if (body.held) {
+			body.vx = 0;
+			body.vy = 0;
+			body.vz = 0;
+			continue;
+		}
+		body.vx += gravity[0] * d;
+		body.vy += gravity[1] * d;
+		body.vz += gravity[2] * d;
+		body.x += body.vx * d;
+		body.y += body.vy * d;
+		body.z += body.vz * d;
+		body.age += d;
+		const floor = FLOOR + body.r;
+		if (body.y < floor) {
+			body.y = floor;
+			if (body.vy < 0) body.vy = -body.vy * .42;
+			body.vx *= .86;
+			body.vz *= .86;
+		}
+		const horiz = Math.hypot(body.x, body.z);
+		const limit = Math.max(.05, wallRadius(body.y) - body.r);
+		if (body.y < RIM && horiz > limit) {
+			const nx = body.x / (horiz || 1);
+			const nz = body.z / (horiz || 1);
+			body.x = nx * limit;
+			body.z = nz * limit;
+			const vn = body.vx * nx + body.vz * nz;
+			if (vn > 0) {
+				body.vx -= 1.45 * vn * nx;
+				body.vz -= 1.45 * vn * nz;
+			}
+		}
+	}
+	for (let i = 0; i < bodies.length; i += 1) for (let j = i + 1; j < bodies.length; j += 1) {
+		const a = bodies[i];
+		const b = bodies[j];
+		const dx = b.x - a.x;
+		const dy = b.y - a.y;
+		const dz = b.z - a.z;
+		const dist = Math.hypot(dx, dy, dz) || 1e-4;
+		const min = a.r + b.r;
+		if (dist >= min) continue;
+		const nx = dx / dist;
+		const ny = dy / dist;
+		const nz = dz / dist;
+		const overlap = min - dist;
+		if (!a.held) {
+			a.x -= nx * overlap * .5;
+			a.y -= ny * overlap * .5;
+			a.z -= nz * overlap * .5;
+		}
+		if (!b.held) {
+			b.x += nx * overlap * .5;
+			b.y += ny * overlap * .5;
+			b.z += nz * overlap * .5;
+		}
+		const rel = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny + (b.vz - a.vz) * nz;
+		if (rel >= 0) continue;
+		const impulse = -(1.55 * rel) * .5;
+		if (!a.held) {
+			a.vx -= impulse * nx;
+			a.vy -= impulse * ny;
+			a.vz -= impulse * nz;
+		}
+		if (!b.held) {
+			b.vx += impulse * nx;
+			b.vy += impulse * ny;
+			b.vz += impulse * nz;
+		}
+	}
+	for (let i = bodies.length - 1; i >= 0; i -= 1) {
+		const body = bodies[i];
+		if (body.kind === "spark" && body.age > body.life) bodies.splice(i, 1);
+		else if (body.y < -3 || Math.hypot(body.x, body.z) > 5) bodies.splice(i, 1);
+	}
+}
+function stepSlosh(dt, tiltX, tiltZ, shake) {
+	const n = slosh.n;
+	const d = Math.min(.033, Math.max(0, dt));
+	const spring = 16;
+	for (let y = 0; y < n; y += 1) for (let x = 0; x < n; x += 1) {
+		const i = y * n + x;
+		let sum = 0;
+		let count = 0;
+		if (x > 0) {
+			sum += slosh.h[i - 1];
+			count += 1;
+		}
+		if (x < n - 1) {
+			sum += slosh.h[i + 1];
+			count += 1;
+		}
+		if (y > 0) {
+			sum += slosh.h[i - n];
+			count += 1;
+		}
+		if (y < n - 1) {
+			sum += slosh.h[i + n];
+			count += 1;
+		}
+		const avg = count ? sum / count : 0;
+		const tilt = (x / (n - 1) - .5) * tiltZ * .4 + (y / (n - 1) - .5) * tiltX * .4;
+		const noise = shake > .35 ? (mulberry() - .5) * shake * .12 : 0;
+		slosh.v[i] += (avg - slosh.h[i] + tilt + noise) * spring * d;
+		slosh.v[i] *= Math.exp(-2.6 * d);
+	}
+	for (let i = 0; i < slosh.h.length; i += 1) slosh.h[i] = Math.max(-.48, Math.min(.48, slosh.h[i] + slosh.v[i] * d));
+}
+function pokeSlosh(u, v, amount) {
+	const n = slosh.n;
+	const x = Math.max(0, Math.min(n - 1, Math.round(u * (n - 1))));
+	const y = Math.max(0, Math.min(n - 1, Math.round(v * (n - 1))));
+	slosh.v[y * n + x] += amount;
+}
+function splashBodies() {
+	for (const body of bodies) {
+		if (body.held) continue;
+		const floor = FLOOR + body.r;
+		if (body.y <= floor + .03 && Math.abs(body.vy) > .4) pokeSlosh(body.x / 1.5 + .5, body.z / 1.5 + .5, Math.min(1.1, Math.abs(body.vy) * .32));
+	}
+}
+function stepBrewPhysics(dt, env) {
+	stepBodies(dt, env.gravity);
+	stepSlosh(dt, env.tiltX, env.tiltZ, env.shake);
+	splashBodies();
+}
+function knockAll(ix, iy, iz) {
+	for (const body of bodies) {
+		if (body.held) continue;
+		const spread = .45 + mulberry() * .4;
+		body.vx += ix * spread;
+		body.vy += iy;
+		body.vz += iz * spread;
+	}
+	pokeSlosh(.5, .5, Math.min(1.2, Math.hypot(ix, iy, iz) * .15));
+}
+function rayHit(ray) {
+	let best = null;
+	let bestT = 1e9;
+	const [ox, oy, oz] = ray.origin;
+	const [dx, dy, dz] = ray.dir;
+	for (const body of bodies) {
+		const lx = ox - body.x;
+		const ly = oy - body.y;
+		const lz = oz - body.z;
+		const b = lx * dx + ly * dy + lz * dz;
+		const rad = body.r + .08;
+		const c = lx * lx + ly * ly + lz * lz - rad * rad;
+		const disc = b * b - c;
+		if (disc < 0) continue;
+		const t = -b - Math.sqrt(disc);
+		if (t < bestT && t > -.15) {
+			bestT = t;
+			best = body;
+		}
+	}
+	return best;
+}
+function holdingPhysics() {
+	return heldId != null;
+}
+function grabPhysics(clientX, clientY) {
+	const ray = rayView?.(clientX, clientY);
+	if (!ray) return false;
+	const hit = rayHit(ray);
+	if (!hit) return false;
+	if (heldId && heldId !== hit.id) {
+		const prev = bodies.find((body) => body.id === heldId);
+		if (prev) prev.held = false;
+	}
+	heldId = hit.id;
+	hit.held = true;
+	hit.vx = 0;
+	hit.vy = 0;
+	hit.vz = 0;
+	return true;
+}
+function dragPhysics(clientX, clientY) {
+	const held = bodies.find((body) => body.id === heldId);
+	const ray = rayView?.(clientX, clientY);
+	if (!held || !ray) return;
+	const [ox, oy, oz] = ray.origin;
+	const [dx, dy, dz] = ray.dir;
+	if (Math.abs(dy) < 1e-4) return;
+	const t = (held.y - oy) / dy;
+	if (t < 0 || t > 12) return;
+	held.x = ox + dx * t;
+	held.z = oz + dz * t;
+	const limit = wallRadius(held.y) + .35;
+	const horiz = Math.hypot(held.x, held.z);
+	if (horiz > limit) {
+		held.x = held.x / horiz * limit;
+		held.z = held.z / horiz * limit;
+	}
+}
+function releasePhysics(vx, vy, vz) {
+	const held = bodies.find((body) => body.id === heldId);
+	if (!held) return false;
+	held.held = false;
+	held.vx = vx;
+	held.vy = vy;
+	held.vz = vz;
+	heldId = null;
+	pokeSlosh(held.x / 1.5 + .5, held.z / 1.5 + .5, .45);
+	return true;
+}
+function physicsSnapshot() {
+	return {
+		seed,
+		gravity: GRAVITY,
+		bodies: bodies.slice(0, 16).map((body) => ({
+			id: body.id,
+			kind: body.kind,
+			position: [
+				round(body.x),
+				round(body.y),
+				round(body.z)
+			],
+			velocity: [
+				round(body.vx),
+				round(body.vy),
+				round(body.vz)
+			]
+		}))
 	};
 }
 /** Robinhood Chain testnet only. No keys, no mainnet switch in this build. */
@@ -950,7 +1491,10 @@ var en_default = {
 		"velocity": "Angular velocity",
 		"axis": "Axis",
 		"damping": "Damping",
-		"spins": "Spin count"
+		"spins": "Spin count",
+		"gravity": "Gravity",
+		"tier": "Tier",
+		"bodies": "Bodies"
 	},
 	room: {
 		"title": "One cauldron",
@@ -1576,7 +2120,19 @@ function FlatBrew({ drops, vibe, reduced }) {
 		if (!ctx) return;
 		let frame = 0;
 		let time = 0;
+		let stamp = performance.now();
 		const draw = () => {
+			const now = performance.now();
+			const dt = Math.min(.05, (now - stamp) / 1e3);
+			stamp = now;
+			const leanX = masterMix.freeze ? 0 : liveSensor.tiltY * .7 + remoteSensor.tiltY * .2;
+			const leanZ = masterMix.freeze ? 0 : liveSensor.tiltX * .7 + remoteSensor.tiltX * .2;
+			stepBrewPhysics(dt, {
+				gravity: localGravity(spin.x + leanX, spin.y, spin.z + leanZ),
+				tiltX: leanX,
+				tiltZ: leanZ,
+				shake: masterMix.freeze || reduced ? 0 : liveSensor.shake
+			});
 			const dpr = Math.min(window.devicePixelRatio || 1, 2);
 			const width = canvas.clientWidth || 320;
 			const height = canvas.clientHeight || 480;
@@ -1618,7 +2174,11 @@ function FlatBrew({ drops, vibe, reduced }) {
 			ctx.fillStyle = color;
 			ctx.globalAlpha = .95;
 			ctx.beginPath();
-			ctx.ellipse(cx, cy - radius * .05, radius * .82, radius * .22, spin.y, 0, Math.PI * 2);
+			const grid = sloshGrid();
+			let wave = 0;
+			for (let i = 0; i < grid.h.length; i += 1) wave += Math.abs(grid.h[i]);
+			wave = grid.h.length ? wave / grid.h.length : 0;
+			ctx.ellipse(cx, cy - radius * .05, radius * (.82 + wave * .35), radius * (.22 + wave * .5), spin.y, 0, Math.PI * 2);
 			ctx.fill();
 			ctx.globalAlpha = 1;
 			ctx.save();
@@ -1635,15 +2195,15 @@ function FlatBrew({ drops, vibe, reduced }) {
 			ctx.arc(radius * 1.35, -radius * .95, Math.max(8, radius * .16), 0, Math.PI * 2);
 			ctx.fill();
 			ctx.restore();
-			drops.slice(-8).forEach((drop, i) => {
-				const hue = ingredientById(drop.ingredient).hue;
-				const a = time * 1.4 + i * .9 + spin.y;
-				const orbit = radius * (1.15 + i % 3 * .18);
-				ctx.fillStyle = hslToHex(hue, .85, .55);
+			for (const body of liveBodies()) {
+				const fade = body.kind === "spark" ? Math.max(0, 1 - body.age / body.life) : .95;
+				ctx.globalAlpha = fade;
+				ctx.fillStyle = body.color;
 				ctx.beginPath();
-				ctx.arc(cx + Math.cos(a) * orbit, cy - radius * .35 + Math.sin(a) * orbit * .45, Math.max(6, radius * .12), 0, Math.PI * 2);
+				ctx.arc(cx + body.x * radius * 1.15, cy - body.y * radius * .48, Math.max(4, body.r * radius * 1.6), 0, Math.PI * 2);
 				ctx.fill();
-			});
+			}
+			ctx.globalAlpha = 1;
 			frame = requestAnimationFrame(draw);
 		};
 		frame = requestAnimationFrame(draw);
@@ -2012,7 +2572,7 @@ var useBrew = create((set, get) => ({
 	setNotice: (notice) => set({ notice }),
 	setRecording: (recording) => set({ recording })
 }));
-var CauldronScene = (0, import_react.lazy)(() => import("./scene-DGbIBYMG.mjs").then((mod) => ({ default: mod.CauldronScene })));
+var CauldronScene = (0, import_react.lazy)(() => import("./scene-BKYjPw4d.mjs").then((mod) => ({ default: mod.CauldronScene })));
 var StageBoundary = class extends import_react.Component {
 	state = { bad: false };
 	static getDerivedStateFromError() {
@@ -2150,6 +2710,25 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 		};
 	}, [progress.level]);
 	(0, import_react.useEffect)(() => {
+		if (!quality) return;
+		const fx = effectsFor(quality);
+		configurePhysics({
+			charms: fx.bodies,
+			sparks: fx.sparkBodies,
+			slosh: fx.slosh
+		});
+	}, [quality]);
+	(0, import_react.useEffect)(() => {
+		syncCharms(drops.filter((drop) => !drop.neutral).map((drop) => {
+			const hue = ingredientById(drop.ingredient).hue;
+			return {
+				id: drop.id,
+				hue,
+				color: hslToHex(hue, .9, .58)
+			};
+		}));
+	}, [drops]);
+	(0, import_react.useEffect)(() => {
 		if (!started) return;
 		let frame = 0;
 		let last = performance.now();
@@ -2188,6 +2767,12 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 				stage.dataset.spin = Math.hypot(spin.vx, spin.vy, spin.vz).toFixed(3);
 				stage.dataset.drops = String(useBrew.getState().drops.length);
 				stage.style.setProperty("--brew", shown.hex);
+				const spark = sparks[sparks.length - 1];
+				if (spark) {
+					let count = 0;
+					for (let i = sparks.length - 1; i >= 0 && sparks[i].at === spark.at; i -= 1) count += 1;
+					noteBurst(spark.at, spark.color, count);
+				}
 				const ring = stage.querySelector(".brew-pulse");
 				if (ring instanceof HTMLElement) {
 					const left = pulse.until - Date.now();
@@ -2335,24 +2920,30 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 			if (event.key === "ArrowLeft") {
 				liveSensor.tiltX = Math.max(-1, liveSensor.tiltX - .35);
 				impulse(0, -1.1, 0);
+				knockAll(-1.6, .35, 0);
 			}
 			if (event.key === "ArrowRight") {
 				liveSensor.tiltX = Math.min(1, liveSensor.tiltX + .35);
 				impulse(0, 1.1, 0);
+				knockAll(1.6, .35, 0);
 			}
 			if (event.key === "ArrowUp") {
 				liveSensor.tiltY = Math.max(-1, liveSensor.tiltY - .35);
 				impulse(-1.1, 0, 0);
+				knockAll(0, .45, -1.4);
 			}
 			if (event.key === "ArrowDown") {
 				liveSensor.tiltY = Math.min(1, liveSensor.tiltY + .35);
 				impulse(1.1, 0, 0);
+				knockAll(0, .45, 1.4);
 			}
 			if (event.key === " ") {
 				event.preventDefault();
 				liveSensor.burst = 1;
 				liveSensor.shake = 1;
 				impulse(.4, 1.6, .5);
+				knockAll(.15, 2.4, -.1);
+				pokeSlosh(.5, .5, 1);
 				burstSparks("#f6efe4", 8);
 				burstSound();
 			}
@@ -2383,6 +2974,7 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 		if (useBrew.getState().started) return;
 		unlockAudio();
 		useBrew.getState().start();
+		resetPhysics(Date.now() & 2147483647 || 1);
 		grant("start");
 	}
 	function hideControl(id) {
@@ -2490,6 +3082,7 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 		const hex = hslToHex(ing.hue, .84, .52);
 		punchColor(hex, ing.hue);
 		burstSparks(hex, 12);
+		pokeSlosh(.35 + ing.hue % 20 / 50, .5, .85);
 		liveSensor.burst = 1;
 		liveSensor.shake = .9;
 		impulse((ing.spikes - .3) * 2.6, 1.15 + ing.energy * 1.7, (ing.hue / 180 - 1) * 1.6);
@@ -2576,6 +3169,8 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 		}
 		const motion = spinSnapshot();
 		rememberMotion(motion);
+		const physicsShot = physicsSnapshot();
+		const materialShot = materialNote(effectsFor(quality ?? qualityFromTier("mid", false, true)));
 		let earlyStill = null;
 		for (let second = 6; second > 0; second -= 1) {
 			useBrew.getState().setRecording(second);
@@ -2611,7 +3206,9 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 			contributors: credited,
 			createdAt: Date.now(),
 			still: earlyStill ?? takeStill() ?? void 0,
-			spin: motion
+			spin: motion,
+			physics: physicsShot,
+			material: materialShot
 		};
 		const prior = sessionStorage.getItem("conjure.lineage");
 		if (prior) try {
@@ -2667,6 +3264,7 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 		}
 		saveName(cleaned);
 		useBrew.getState().setName(cleaned);
+		if (!useBrew.getState().started) resetPhysics(Date.now() & 2147483647 || 1);
 		useBrew.getState().start();
 		try {
 			const snap = await roomCall({
@@ -2741,7 +3339,9 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 				included: true
 			}],
 			createdAt: Date.now(),
-			spin: spinSnapshot()
+			spin: spinSnapshot(),
+			physics: physicsSnapshot(),
+			material: materialNote(effectsFor(quality ?? qualityFromTier("mid", false, true)))
 		});
 		setGallery(loadCreations());
 		patchFlags({ savedRecipe: true });
@@ -2782,6 +3382,14 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "stage",
 				onPointerDown: (event) => {
+					if (grabPhysics(event.clientX, event.clientY)) {
+						try {
+							event.currentTarget.setPointerCapture(event.pointerId);
+						} catch {}
+						pointerDown(event.pointerId, event.clientX, event.clientY);
+						haptic(12);
+						return;
+					}
 					if (sceneMoving({
 						started,
 						reduced,
@@ -2797,6 +3405,23 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 					dragging.current = true;
 				},
 				onPointerUp: (event) => {
+					if (holdingPhysics()) {
+						try {
+							if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+						} catch {}
+						const speed = pointerUp(event.pointerId);
+						releasePhysics(flingVel.x * 10, -flingVel.y * 8 + .4, flingVel.y * 4);
+						if (isFling(speed)) {
+							haptic([
+								12,
+								28,
+								18
+							]);
+							impulse(flingVel.y * .45, flingVel.x * .55, 0);
+							grant("fling");
+						}
+						return;
+					}
 					if (sceneMoving({
 						started,
 						reduced,
@@ -2812,6 +3437,7 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 								18
 							]);
 							impulse(flingVel.y * 1.8, flingVel.x * 2.2, 0);
+							knockAll(flingVel.x * 5, 1.1, flingVel.y * 3);
 							flashPulse("#fff6df", 700);
 							burstSparks("#f6efe4", 10);
 							grant("fling");
@@ -2821,6 +3447,7 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 					dragging.current = false;
 				},
 				onPointerCancel: (event) => {
+					if (holdingPhysics()) releasePhysics(0, .2, 0);
 					pointerUp(event.pointerId);
 					dragging.current = false;
 				},
@@ -2828,6 +3455,11 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 					dragging.current = false;
 				},
 				onPointerMove: (event) => {
+					if (holdingPhysics()) {
+						dragPhysics(event.clientX, event.clientY);
+						pointerMove(event.pointerId, event.clientX, event.clientY);
+						return;
+					}
 					if (sceneMoving({
 						started,
 						reduced,
@@ -3077,9 +3709,7 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 							type: "button",
 							className: "start-btn",
 							onClick: () => {
-								unlockAudio();
-								useBrew.getState().start();
-								grant("start");
+								ensureLive();
 								say("The cauldron is open.");
 							},
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XeIcon, {
@@ -3596,6 +4226,27 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 								review.spin.spinCount
 							]
 						}),
+						review.material && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+							className: "muted",
+							children: [
+								t("mint.tier"),
+								" ",
+								review.material.tier,
+								" · ",
+								t("mint.gravity"),
+								" ",
+								review.physics?.gravity ?? 9.8,
+								" ·",
+								" ",
+								t("mint.bodies"),
+								" ",
+								review.physics?.bodies.length ?? 0,
+								" · IOR ",
+								review.material.ior,
+								" · ",
+								review.material.toneMapping
+							]
+						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "row wrap",
 							children: [
@@ -3725,7 +4376,9 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 										spin: review.spin ?? null,
 										vibe: review.vibe,
 										chainId: CHAIN.id,
-										royaltyBps: CHAIN.royaltyBps
+										royaltyBps: CHAIN.royaltyBps,
+										physics: review.physics ?? null,
+										material: review.material ?? null
 									});
 									const file = new Blob([JSON.stringify(meta, null, 2)], { type: "application/json" });
 									const url = URL.createObjectURL(file);
@@ -3962,4 +4615,4 @@ function PageFrame({ title, children }) {
 	});
 }
 //#endregion
-export { t as C, spinSnapshot as S, setExportGlb as _, decaySensor as a, spin as b, ingredientById as c, masterMix as d, punch as f, setEnterAR as g, remoteSensor as h, computeBrew as i, liveSensor as l, rememberedMotion as m, PageFrame as n, flingVel as o, punchStrength as p, blendSensors as r, hslToHex as s, ConjureApp as t, loadReplay as u, setGrabStill as v, toolTouch as w, spinFrames as x, sparks as y };
+export { toolTouch as A, setRayView as C, spinSnapshot as D, spinFrames as E, stepBrewPhysics as O, setGrabStill as S, spin as T, punchStrength as _, decaySensor as a, setEnterAR as b, hslToHex as c, liveSensor as d, loadReplay as f, punch as g, physicsSnapshot as h, computeBrew as i, t as k, ingredientById as l, masterMix as m, PageFrame as n, effectsFor as o, localGravity as p, blendSensors as r, flingVel as s, ConjureApp as t, liveBodies as u, rememberedMotion as v, sloshGrid as w, setExportGlb as x, remoteSensor as y };

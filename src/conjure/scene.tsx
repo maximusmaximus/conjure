@@ -1,11 +1,19 @@
-import { useEffect, useMemo, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { AdaptiveDpr, ContactShadows, PerformanceMonitor } from "@react-three/drei";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { BokehPass } from "three/examples/jsm/postprocessing/BokehPass.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import * as THREE from "three";
 import { computeBrew, blendSensors, decaySensor, hslToHex, ingredientById, type Drop, type FormId, type Vibe } from "./brew";
-import { liveSensor, masterMix, punch, punchStrength, remoteSensor, setEnterAR, setExportGlb, setGrabStill, sparks, toolTouch } from "./live";
+import { liveSensor, masterMix, punch, punchStrength, remoteSensor, setEnterAR, setExportGlb, setGrabStill, toolTouch } from "./live";
 import { flingVel } from "./fling";
 import { rememberedMotion, spin, spinFrames, spinSnapshot } from "./spin";
 import type { Quality } from "./quality";
+import { effectsFor, type FxProfile } from "./fx";
+import { liveBodies, localGravity, physicsSnapshot, setRayView, sloshGrid, stepBrewPhysics } from "./physics";
 
 const potPoints = (() => {
   const pts: THREE.Vector2[] = [];
@@ -30,6 +38,7 @@ function Rig({
   reduced,
   particles,
   detail,
+  fx,
 }: {
   drops: Drop[];
   vibe: Vibe;
@@ -37,6 +46,7 @@ function Rig({
   reduced: boolean;
   particles: number;
   detail: number;
+  fx: FxProfile;
 }) {
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.1);
@@ -48,7 +58,15 @@ function Rig({
     }
   });
   return (
-    <BrewMesh drops={drops} vibe={vibe} form={form} reduced={reduced} particles={particles} detail={detail} />
+    <BrewMesh
+      drops={drops}
+      vibe={vibe}
+      form={form}
+      reduced={reduced}
+      particles={particles}
+      detail={detail}
+      fx={fx}
+    />
   );
 }
 
@@ -59,6 +77,7 @@ function BrewMesh({
   reduced,
   particles,
   detail,
+  fx,
 }: {
   drops: Drop[];
   vibe: Vibe;
@@ -66,8 +85,10 @@ function BrewMesh({
   reduced: boolean;
   particles: number;
   detail: number;
+  fx: FxProfile;
 }) {
   const liquid = useRef<THREE.ShaderMaterial>(null);
+  const potion = useRef<THREE.MeshPhysicalMaterial>(null);
   const skin = useRef<THREE.ShaderMaterial>(null);
   const orb = useRef<THREE.Group>(null);
   const pot = useRef<THREE.Group>(null);
@@ -75,13 +96,40 @@ function BrewMesh({
   const glow = useRef<THREE.PointLight>(null);
   const flash = useRef(new THREE.Color("#e27a3a"));
   const formRef = form;
+  const { camera, gl } = useThree();
+  const sloshTex = useMemo(() => {
+    const size = 32;
+    const data = new Uint8Array(size * size * 4);
+    data.fill(128);
+    const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+    tex.colorSpace = THREE.NoColorSpace;
+    tex.wrapS = THREE.ClampToEdgeWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.magFilter = THREE.LinearFilter;
+    tex.minFilter = THREE.LinearFilter;
+    tex.needsUpdate = true;
+    return tex;
+  }, []);
   const liquidUniforms = useMemo(
     () => ({
       uTime: { value: 0 },
       uColor: { value: new THREE.Color("#c46a32") },
       uEnergy: { value: 0.4 },
+      uSlosh: { value: sloshTex },
     }),
-    [],
+    [sloshTex],
+  );
+  const compilePotion = useCallback(
+    (shader: { uniforms: Record<string, { value: unknown }>; vertexShader: string }) => {
+      shader.uniforms.uSlosh = liquidUniforms.uSlosh;
+      shader.vertexShader = shader.vertexShader
+        .replace("#include <uv_pars_vertex>", "#include <uv_pars_vertex>\nuniform sampler2D uSlosh;")
+        .replace(
+          "#include <begin_vertex>",
+          "#include <begin_vertex>\nfloat sloshH = texture2D(uSlosh, uv).r * 2.0 - 1.0;\ntransformed.z += sloshH * 0.28;",
+        );
+    },
+    [liquidUniforms],
   );
   const skinUniforms = useMemo(
     () => ({
@@ -132,7 +180,7 @@ function BrewMesh({
     const leanZ = masterMix.freeze ? 0 : liveSensor.tiltX * 0.7 + remoteSensor.tiltX * 0.2;
     if (glow.current) {
       glow.current.color.copy(liquidUniforms.uColor.value);
-      glow.current.intensity = masterMix.freeze ? 6 : 16 + flashT * 36;
+      glow.current.intensity = masterMix.freeze ? 3 : 7 + flashT * 20;
     }
     if (brewGroup.current) {
       brewGroup.current.rotation.set(spin.x + leanX, spin.y, spin.z + leanZ);
@@ -141,23 +189,74 @@ function BrewMesh({
       pot.current.rotation.y = spin.y;
       pot.current.rotation.z = Math.sin(spin.z) * 0.12 + leanZ * 0.25;
     }
+    stepBrewPhysics(dt, {
+      gravity: localGravity(spin.x + leanX, spin.y, spin.z + leanZ),
+      tiltX: reduced ? leanX * 0.25 : leanX,
+      tiltZ: reduced ? leanZ * 0.25 : leanZ,
+      shake: reduced || masterMix.freeze ? 0 : liveSensor.shake,
+    });
+    const grid = sloshGrid();
+    const data = sloshTex.image.data as Uint8Array;
+    const size = sloshTex.image.width as number;
+    const n = grid.n;
+    for (let y = 0; y < size; y += 1) {
+      const gy = Math.min(n - 1, (y * n) / size) | 0;
+      for (let x = 0; x < size; x += 1) {
+        const gx = Math.min(n - 1, (x * n) / size) | 0;
+        const h = grid.h[gy * n + gx] ?? 0;
+        const byte = Math.max(0, Math.min(255, Math.round(((h + 0.48) / 0.96) * 255)));
+        const i = (y * size + x) * 4;
+        data[i] = byte;
+        data[i + 1] = byte;
+        data[i + 2] = byte;
+        data[i + 3] = 255;
+      }
+    }
+    sloshTex.needsUpdate = true;
+    if (potion.current) {
+      potion.current.color.copy(liquidUniforms.uColor.value);
+      potion.current.emissive.copy(liquidUniforms.uColor.value);
+      potion.current.emissiveIntensity = fx.emissiveIntensity * (0.22 + liquidUniforms.uEnergy.value);
+    }
   });
+
+  useEffect(() => {
+    const raycaster = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    const inv = new THREE.Matrix4();
+    const origin = new THREE.Vector3();
+    const dir = new THREE.Vector3();
+    setRayView((x, y) => {
+      const group = brewGroup.current;
+      const rect = gl.domElement.getBoundingClientRect();
+      if (!group || rect.width < 1 || rect.height < 1) return null;
+      ndc.x = ((x - rect.left) / rect.width) * 2 - 1;
+      ndc.y = -((y - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(ndc, camera);
+      group.updateWorldMatrix(true, false);
+      inv.copy(group.matrixWorld).invert();
+      origin.copy(raycaster.ray.origin).applyMatrix4(inv);
+      dir.copy(raycaster.ray.direction).transformDirection(inv).normalize();
+      return { origin: [origin.x, origin.y, origin.z], dir: [dir.x, dir.y, dir.z] };
+    });
+    return () => setRayView(null);
+  }, [camera, gl]);
 
   return (
     <group>
       <pointLight ref={glow} position={[0, 1.7, 0.6]} intensity={16} distance={9} />
       <group ref={pot}>
-        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <circleGeometry args={[1.35, 40]} />
           <meshStandardMaterial color="#3a2e28" roughness={1} />
         </mesh>
-        <mesh position={[0, 0, 0]} castShadow={false}>
+        <mesh position={[0, 0, 0]} castShadow={fx.shadows}>
           <latheGeometry args={[potPoints, detail >= 5 ? 64 : 40]} />
-          <meshStandardMaterial color="#8d6b52" roughness={0.62} metalness={0.28} />
+          <meshStandardMaterial color="#6b4c38" roughness={0.72} metalness={0.18} />
         </mesh>
-        <mesh position={[0, 1.02, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <mesh position={[0, 1.02, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow={fx.shadows}>
           <torusGeometry args={[0.98, 0.055, 12, 40]} />
-          <meshStandardMaterial color="#e0b07a" roughness={0.35} metalness={0.6} />
+          <meshStandardMaterial color="#c49255" roughness={0.32} metalness={0.64} />
         </mesh>
         {[0, 2, 4].map((k) => (
           <mesh
@@ -180,13 +279,38 @@ function BrewMesh({
             fragmentShader={liquidFrag}
           />
         </mesh>
+        {fx.transmission > 0 && (
+          <mesh position={[0, 0.75, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <circleGeometry args={[0.76, 64]} />
+            <meshPhysicalMaterial
+              ref={potion}
+              color="#c46a32"
+              transmission={fx.transmission}
+              thickness={fx.thickness}
+              ior={fx.ior}
+              iridescence={fx.iridescence}
+              iridescenceIOR={1.3}
+              clearcoat={fx.clearcoat}
+              sheen={fx.sheen}
+              sheenColor="#fff1df"
+              roughness={0.04}
+              metalness={0}
+              emissive="#c46a32"
+              emissiveIntensity={fx.emissiveIntensity * 0.55}
+              transparent
+              opacity={0.72}
+              attenuationColor="#e27a3a"
+              attenuationDistance={0.35}
+              onBeforeCompile={compilePotion}
+            />
+          </mesh>
+        )}
         <group ref={orb} position={[0, 1.62, 0]}>
           <FormMesh form={formRef} uniforms={skinUniforms} detail={detail} />
         </group>
         <Embers drops={drops} vibe={vibe} count={particles} />
         <Falls drops={drops} />
-        <Sparks />
-        <Charms drops={drops} />
+        <PhysVis fx={fx} />
         <Ladle />
       </group>
     </group>
@@ -354,6 +478,7 @@ function Embers({ drops, vibe, count }: { drops: Drop[]; vibe: Vibe; count: numb
         transparent
         opacity={0.9}
         depthWrite={false}
+        blending={THREE.AdditiveBlending}
         sizeAttenuation
       />
     </points>
@@ -402,44 +527,113 @@ function Falls({ drops }: { drops: Drop[] }) {
   );
 }
 
-function Sparks() {
-  const ref = useRef<THREE.InstancedMesh>(null);
+function paintBodies(
+  mesh: THREE.InstancedMesh | null,
+  kind: "charm" | "spark",
+  max: number,
+  dummy: THREE.Object3D,
+  tint: THREE.Color,
+) {
+  if (!mesh) return;
+  const list = liveBodies().filter((body) => body.kind === kind);
+  for (let i = 0; i < max; i += 1) {
+    const body = list[i];
+    if (!body) {
+      dummy.position.set(0, -8, 0);
+      dummy.scale.setScalar(0.001);
+      dummy.rotation.set(0, 0, 0);
+    } else {
+      dummy.position.set(body.x, body.y, body.z);
+      const fade = kind === "spark" ? Math.max(0.2, 1 - body.age / body.life) : 1;
+      const size = body.r * (kind === "charm" ? 3.4 : 2.8) * (body.held ? 1.28 : 1) * fade;
+      dummy.scale.setScalar(size);
+      dummy.rotation.set(body.age * 2.2, body.hue * 0.02, body.age * 0.8);
+      tint.set(body.color);
+      mesh.setColorAt(i, tint);
+    }
+    dummy.updateMatrix();
+    mesh.setMatrixAt(i, dummy.matrix);
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+}
+
+function PhysVis({ fx }: { fx: FxProfile }) {
+  const charms = useRef<THREE.Group>(null);
+  const sparksMesh = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const tint = useMemo(() => new THREE.Color("#ffffff"), []);
   useFrame(() => {
-    const mesh = ref.current;
-    if (!mesh) return;
-    const now = Date.now();
-    for (let i = 0; i < 32; i += 1) {
-      const spark = sparks[i];
-      const age = spark ? (now - spark.at) / 1000 : 99;
-      if (!spark || age < 0 || age > 1.35) {
-        dummy.position.set(0, -8, 0);
-        dummy.scale.setScalar(0.001);
-      } else {
-        const t = age / 1.35;
-        const radius = 0.25 + t * 1.15;
-        dummy.position.set(
-          Math.cos(spark.angle + t * 4.5) * radius,
-          1.15 + Math.sin(t * Math.PI) * 1.35,
-          Math.sin(spark.angle + t * 4.5) * radius,
-        );
-        dummy.scale.setScalar(1 - t);
-        dummy.rotation.set(t * 6, spark.angle, 0);
-        tint.set(spark.color);
-        mesh.setColorAt(i, tint);
+    const group = charms.current;
+    if (group) {
+      const list = liveBodies().filter((body) => body.kind === "charm");
+      for (let i = 0; i < 8; i += 1) {
+        const mesh = group.children[i] as THREE.Mesh;
+        const body = list[i];
+        if (!mesh) continue;
+        if (!body) {
+          mesh.visible = false;
+          continue;
+        }
+        mesh.visible = true;
+        mesh.position.set(body.x, body.y, body.z);
+        mesh.scale.setScalar(body.r * 3.6 * (body.held ? 1.3 : 1));
+        mesh.rotation.x += 0.01;
+        mesh.rotation.y += 0.016;
+        const mat = mesh.material as THREE.MeshStandardMaterial & { attenuationColor?: THREE.Color };
+        mat.color.set(body.color);
+        mat.emissive.set(body.color);
+        if (mat.attenuationColor) mat.attenuationColor.set(body.color);
       }
-      dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
     }
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    paintBodies(sparksMesh.current, "spark", 32, dummy, tint);
   });
   return (
-    <instancedMesh ref={ref} args={[undefined, undefined, 32]}>
-      <octahedronGeometry args={[0.16, 0]} />
-      <meshBasicMaterial color="#ffffff" />
-    </instancedMesh>
+    <group>
+      <group ref={charms}>
+        {Array.from({ length: 8 }, (_, i) => (
+          <mesh key={i} visible={false} castShadow={fx.shadows}>
+            <icosahedronGeometry args={[1, fx.master ? 1 : 0]} />
+            {fx.charmTransmission > 0 ? (
+              <meshPhysicalMaterial
+                color="#ffffff"
+                transmission={Math.min(0.72, fx.charmTransmission)}
+                thickness={Math.max(0.25, fx.thickness * 0.5)}
+                ior={fx.ior}
+                iridescence={fx.iridescence}
+                clearcoat={fx.clearcoat}
+                sheen={fx.sheen}
+                roughness={0.08}
+                metalness={0.02}
+                emissive="#ffffff"
+                emissiveIntensity={fx.emissiveIntensity * 0.65}
+                attenuationColor="#ffffff"
+                attenuationDistance={0.28}
+                transparent
+              />
+            ) : (
+              <meshStandardMaterial
+                color="#ffffff"
+                roughness={0.28}
+                metalness={0.12}
+                emissive="#ffffff"
+                emissiveIntensity={fx.emissiveIntensity * 0.45}
+              />
+            )}
+          </mesh>
+        ))}
+      </group>
+      <instancedMesh ref={sparksMesh} args={[undefined, undefined, 32]}>
+        <octahedronGeometry args={[1, 0]} />
+        <meshStandardMaterial
+          color="#ffffff"
+          emissive="#ffffff"
+          emissiveIntensity={Math.max(1.2, fx.emissiveIntensity * 2.2)}
+          roughness={0.15}
+          toneMapped={false}
+        />
+      </instancedMesh>
+    </group>
   );
 }
 
@@ -462,43 +656,7 @@ function Ladle() {
   );
 }
 
-function Charms({ drops }: { drops: Drop[] }) {
-  const ref = useRef<THREE.Group>(null);
-  useFrame(({ clock }) => {
-    const group = ref.current;
-    if (!group) return;
-    const t = clock.elapsedTime;
-    const live = drops.slice(-8);
-    for (let i = 0; i < 8; i += 1) {
-      const mesh = group.children[i] as THREE.Mesh;
-      const drop = live[i];
-      if (!drop) {
-        mesh.visible = false;
-        continue;
-      }
-      mesh.visible = true;
-      const hue = ingredientById(drop.ingredient).hue;
-      (mesh.material as THREE.MeshBasicMaterial).color.set(hslToHex(hue, 0.9, 0.58));
-      const a = t * 0.9 + i * 0.95;
-      const r = 1.08 + (i % 3) * 0.18;
-      mesh.position.set(Math.cos(a) * r, 1.5 + Math.sin(t * 2.2 + i) * 0.24, Math.sin(a) * r);
-      mesh.rotation.set(a, a * 0.6, 0);
-      mesh.scale.setScalar(0.9 + (i % 2) * 0.35);
-    }
-  });
-  return (
-    <group ref={ref}>
-      {Array.from({ length: 8 }, (_, i) => (
-        <mesh key={i} visible={false}>
-          <octahedronGeometry args={[0.2, 0]} />
-          <meshBasicMaterial color="#ffffff" />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-function Bridges({ root }: { root: RefObject<THREE.Group | null> }) {
+function Bridges({ root, fx }: { root: RefObject<THREE.Group | null>; fx: FxProfile }) {
   const { gl } = useThree();
   useEffect(() => {
     setGrabStill(() => {
@@ -511,12 +669,18 @@ function Bridges({ root }: { root: RefObject<THREE.Group | null> }) {
     setExportGlb(async () => {
       if (!root.current) return null;
       const motion = rememberedMotion() ?? spinSnapshot();
+      const snap = physicsSnapshot();
       root.current.userData = {
         conjure: {
           angularVelocity: motion.angularVelocity,
           axis: motion.axis,
           damping: motion.damping,
           spinCount: motion.spinCount,
+          physicsSeed: snap.seed,
+          gravity: snap.gravity,
+          tier: fx.master ? "master" : fx.tier,
+          transmission: fx.transmission,
+          ior: fx.ior,
         },
       };
       const frames = spinFrames(motion, 6, 36);
@@ -552,15 +716,19 @@ function Bridges({ root }: { root: RefObject<THREE.Group | null> }) {
       setExportGlb(null);
       setEnterAR(null);
     };
-  }, [gl, root]);
+  }, [gl, root, fx]);
   return null;
 }
 
 const liquidVert = /* glsl */ `
   varying vec2 vUv;
+  uniform sampler2D uSlosh;
   void main() {
     vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    vec3 p = position;
+    float h = texture2D(uSlosh, uv).r * 2.0 - 1.0;
+    p.z += h * 0.28;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
   }
 `;
 
@@ -614,6 +782,76 @@ const skinFrag = /* glsl */ `
   }
 `;
 
+function RoomEnv() {
+  const { gl, scene } = useThree();
+  useEffect(() => {
+    const pmrem = new THREE.PMREMGenerator(gl);
+    const room = new RoomEnvironment();
+    const target = pmrem.fromScene(room, 0.04);
+    scene.environment = target.texture;
+    scene.environmentIntensity = 0.42;
+    return () => {
+      scene.environment = null;
+      target.dispose();
+      pmrem.dispose();
+      room.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        mesh.geometry?.dispose();
+        const mat = mesh.material as THREE.Material | THREE.Material[] | undefined;
+        if (Array.isArray(mat)) mat.forEach((item) => item.dispose());
+        else mat?.dispose();
+      });
+    };
+  }, [gl, scene]);
+  return null;
+}
+
+function Grade({ fx }: { fx: FxProfile }) {
+  const { gl } = useThree();
+  useEffect(() => {
+    gl.outputColorSpace = THREE.SRGBColorSpace;
+    gl.toneMapping = fx.toneMapping === "AgX" ? THREE.AgXToneMapping : THREE.ACESFilmicToneMapping;
+    gl.toneMappingExposure = fx.master ? 1.0 : 0.92;
+  }, [gl, fx.toneMapping, fx.master]);
+  return null;
+}
+
+function Post({ fx }: { fx: FxProfile }) {
+  const { gl, scene, camera, size } = useThree();
+  const composer = useRef<EffectComposer | null>(null);
+  const ratio = useRef(0);
+  useEffect(() => {
+    const next = new EffectComposer(gl);
+    next.addPass(new RenderPass(scene, camera));
+    if (fx.bloom > 0) {
+      next.addPass(new UnrealBloomPass(new THREE.Vector2(size.width, size.height), fx.bloom, 0.22, 0.94));
+    }
+    if (fx.dof) {
+      next.addPass(new BokehPass(scene, camera, { focus: 3.6, aperture: 0.00018, maxblur: 0.005 }));
+    }
+    next.setPixelRatio(gl.getPixelRatio());
+    next.setSize(size.width, size.height);
+    composer.current = next;
+    ratio.current = gl.getPixelRatio();
+    return () => {
+      next.dispose();
+      composer.current = null;
+    };
+  }, [gl, scene, camera, size.width, size.height, fx.bloom, fx.dof]);
+  useFrame(() => {
+    const current = composer.current;
+    if (!current) return;
+    const pixelRatio = gl.getPixelRatio();
+    if (pixelRatio !== ratio.current) {
+      ratio.current = pixelRatio;
+      current.setPixelRatio(pixelRatio);
+      current.setSize(size.width, size.height);
+    }
+    current.render();
+  }, 1);
+  return null;
+}
+
 export function CauldronScene({
   drops,
   vibe,
@@ -628,36 +866,53 @@ export function CauldronScene({
   reduced: boolean;
 }) {
   const root = useRef<THREE.Group>(null);
+  const fx = useMemo(() => effectsFor(quality), [quality]);
   return (
     <Canvas
       dpr={quality.dpr}
-      camera={{ position: [0, 1.65, 4.55], fov: 36 }}
+      shadows={fx.shadows ? "soft" : false}
+      camera={{ position: [0, 2.55, 4.05], fov: 34 }}
       gl={{ antialias: quality.tier !== "low", alpha: false, powerPreference: "high-performance", preserveDrawingBuffer: true }}
       onCreated={({ gl, camera }) => {
         gl.setClearColor("#110e0c", 1);
-        camera.lookAt(0, 1.15, 0);
-        if (quality.master) {
-          gl.outputColorSpace = THREE.SRGBColorSpace;
-          gl.toneMapping = THREE.ACESFilmicToneMapping;
-          gl.toneMappingExposure = 1.05;
-        }
+        camera.lookAt(0, 0.95, 0);
+        gl.outputColorSpace = THREE.SRGBColorSpace;
+        gl.toneMapping = fx.toneMapping === "AgX" ? THREE.AgXToneMapping : THREE.ACESFilmicToneMapping;
+        gl.toneMappingExposure = fx.master ? 1.0 : 0.92;
       }}
     >
+      <Grade fx={fx} />
+      <RoomEnv />
+      <PerformanceMonitor>
+        <AdaptiveDpr />
+      </PerformanceMonitor>
+      {fx.shadows && (
+        <ContactShadows position={[0, 0.01, 0]} opacity={0.45} scale={6.5} blur={2.4} far={3.4} color="#140e0b" />
+      )}
       <group ref={root}>
-        <ambientLight intensity={0.85} />
-        <pointLight position={[1.8, 2.8, 2.2]} intensity={28} color="#ffc8a0" />
-        <pointLight position={[-1.6, 1.6, 1.2]} intensity={12} color="#9ee0c4" />
-        <directionalLight position={[0, 3, 2]} intensity={1.4} color="#fff1df" />
+        <ambientLight intensity={0.32} />
+        <pointLight position={[1.8, 2.8, 2.2]} intensity={14} color="#ffc8a0" />
+        <pointLight position={[-1.6, 1.6, 1.2]} intensity={6} color="#9ee0c4" />
+        <directionalLight
+          position={[2.2, 4.4, 2.2]}
+          intensity={1.05}
+          color="#fff1df"
+          castShadow={fx.shadows}
+          shadow-mapSize-width={fx.master ? 1024 : 512}
+          shadow-mapSize-height={fx.master ? 1024 : 512}
+        />
         <Rig
           drops={drops}
           vibe={vibe}
           form={form}
           reduced={reduced}
-          particles={quality.particles}
+          particles={fx.particles}
           detail={quality.detail}
+          fx={fx}
         />
       </group>
-      <Bridges root={root} />
+      <Bridges root={root} fx={fx} />
+      {(fx.bloom > 0 || fx.dof) && <Post fx={fx} />}
     </Canvas>
   );
 }

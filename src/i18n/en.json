@@ -80,7 +80,10 @@
     "velocity": "Angular velocity",
     "axis": "Axis",
     "damping": "Damping",
-    "spins": "Spin count"
+    "spins": "Spin count",
+    "gravity": "Gravity",
+    "tier": "Tier",
+    "bodies": "Bodies"
   },
   "room": {
     "title": "One cauldron",

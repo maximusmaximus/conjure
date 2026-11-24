@@ -1,5 +1,8 @@
 /** Angular motion for the brew. One shared state, eased every frame. */
 
+import type { MaterialNote } from "./fx";
+import type { PhysicsNote } from "./physics";
+
 export type SpinNote = {
   angularVelocity: number;
   axis: [number, number, number];
@@ -136,9 +139,26 @@ export function brewMetadata(input: {
   vibe: string;
   chainId: number;
   royaltyBps: number;
+  physics?: PhysicsNote | null;
+  material?: MaterialNote | null;
 }): Record<string, unknown> {
   const note = input.spin;
   const axis = note?.axis ?? [0, 1, 0];
+  const physics = input.physics ?? { seed: 0, gravity: 9.8, bodies: [] };
+  const material = input.material ?? {
+    transmission: 0,
+    ior: 1.4,
+    thickness: 0,
+    iridescence: 0,
+    clearcoat: 0,
+    sheen: 0,
+    emissiveIntensity: 0,
+    bloom: 0,
+    toneMapping: "ACES" as const,
+    tier: "mid",
+    dof: false,
+    shadows: false,
+  };
   return {
     name: input.title,
     description: "A Conjure brew.",
@@ -149,7 +169,22 @@ export function brewMetadata(input: {
       { trait_type: "Axis", value: axis.map((n) => n.toFixed(3)).join(", ") },
       { trait_type: "Damping", value: note?.damping ?? 0 },
       { trait_type: "Spin count", value: note?.spinCount ?? 0 },
+      { trait_type: "Gravity", value: physics.gravity },
+      { trait_type: "Physics seed", value: physics.seed },
+      { trait_type: "Bodies", value: physics.bodies.length },
+      { trait_type: "Transmission", value: material.transmission },
+      { trait_type: "IOR", value: material.ior },
+      { trait_type: "Thickness", value: material.thickness },
+      { trait_type: "Iridescence", value: material.iridescence },
+      { trait_type: "Emissive intensity", value: material.emissiveIntensity },
+      { trait_type: "Bloom", value: material.bloom },
+      { trait_type: "Tone mapping", value: material.toneMapping },
+      { trait_type: "Tier", value: material.tier },
     ],
+    properties: {
+      physics,
+      material,
+    },
     vibe: input.vibe,
     chainId: input.chainId,
     royaltyBps: input.royaltyBps,

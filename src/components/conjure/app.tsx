@@ -22,8 +22,22 @@ import { resolveVotes } from "@/conjure/consent";
 import { decayFling, flingVel, haptic, isFling, pointerDown, pointerMove, pointerUp, sceneMoving } from "@/conjure/fling";
 import { FlatBrew } from "@/conjure/flat";
 import { XeIcon } from "@/conjure/icons";
-import { burstSparks, downloadGlb, flashPulse, liveSensor, masterMix, punchColor, remoteSensor, shownColor, startAR, takeStill, toolTouch, pulse } from "@/conjure/live";
-import { probeQuality, type Quality } from "@/conjure/quality";
+import { burstSparks, downloadGlb, flashPulse, liveSensor, masterMix, punchColor, remoteSensor, shownColor, sparks, startAR, takeStill, toolTouch, pulse } from "@/conjure/live";
+import { effectsFor, materialNote } from "@/conjure/fx";
+import {
+  configurePhysics,
+  dragPhysics,
+  grabPhysics,
+  holdingPhysics,
+  knockAll,
+  noteBurst,
+  physicsSnapshot,
+  pokeSlosh,
+  releasePhysics,
+  resetPhysics,
+  syncCharms,
+} from "@/conjure/physics";
+import { probeQuality, qualityFromTier, type Quality } from "@/conjure/quality";
 import { brewMetadata, impulse, rememberMotion, restoreSpin, spin, spinSnapshot, stepSpin } from "@/conjure/spin";
 import {
   award,
@@ -214,6 +228,23 @@ export function ConjureApp({
   }, [progress.level]);
 
   useEffect(() => {
+    if (!quality) return;
+    const fx = effectsFor(quality);
+    configurePhysics({ charms: fx.bodies, sparks: fx.sparkBodies, slosh: fx.slosh });
+  }, [quality]);
+
+  useEffect(() => {
+    syncCharms(
+      drops
+        .filter((drop) => !drop.neutral)
+        .map((drop) => {
+          const hue = ingredientById(drop.ingredient).hue;
+          return { id: drop.id, hue, color: hslToHex(hue, 0.9, 0.58) };
+        }),
+    );
+  }, [drops]);
+
+  useEffect(() => {
     if (!started) return;
     let frame = 0;
     let last = performance.now();
@@ -252,6 +283,12 @@ export function ConjureApp({
         stage.dataset.spin = Math.hypot(spin.vx, spin.vy, spin.vz).toFixed(3);
         stage.dataset.drops = String(useBrew.getState().drops.length);
         stage.style.setProperty("--brew", shown.hex);
+        const spark = sparks[sparks.length - 1];
+        if (spark) {
+          let count = 0;
+          for (let i = sparks.length - 1; i >= 0 && sparks[i].at === spark.at; i -= 1) count += 1;
+          noteBurst(spark.at, spark.color, count);
+        }
         const ring = stage.querySelector(".brew-pulse");
         if (ring instanceof HTMLElement) {
           const left = pulse.until - Date.now();
@@ -404,24 +441,30 @@ export function ConjureApp({
       if (event.key === "ArrowLeft") {
         liveSensor.tiltX = Math.max(-1, liveSensor.tiltX - 0.35);
         impulse(0, -1.1, 0);
+        knockAll(-1.6, 0.35, 0);
       }
       if (event.key === "ArrowRight") {
         liveSensor.tiltX = Math.min(1, liveSensor.tiltX + 0.35);
         impulse(0, 1.1, 0);
+        knockAll(1.6, 0.35, 0);
       }
       if (event.key === "ArrowUp") {
         liveSensor.tiltY = Math.max(-1, liveSensor.tiltY - 0.35);
         impulse(-1.1, 0, 0);
+        knockAll(0, 0.45, -1.4);
       }
       if (event.key === "ArrowDown") {
         liveSensor.tiltY = Math.min(1, liveSensor.tiltY + 0.35);
         impulse(1.1, 0, 0);
+        knockAll(0, 0.45, 1.4);
       }
       if (event.key === " ") {
         event.preventDefault();
         liveSensor.burst = 1;
         liveSensor.shake = 1;
         impulse(0.4, 1.6, 0.5);
+        knockAll(0.15, 2.4, -0.1);
+        pokeSlosh(0.5, 0.5, 1);
         burstSparks("#f6efe4", 8);
         burstSound();
       }
@@ -447,6 +490,7 @@ export function ConjureApp({
     if (useBrew.getState().started) return;
     unlockAudio();
     useBrew.getState().start();
+    resetPhysics((Date.now() & 0x7fffffff) || 1);
     grant("start");
   }
 
@@ -557,6 +601,7 @@ export function ConjureApp({
     const hex = hslToHex(ing.hue, 0.84, 0.52);
     punchColor(hex, ing.hue);
     burstSparks(hex, 12);
+    pokeSlosh(0.35 + (ing.hue % 20) / 50, 0.5, 0.85);
     liveSensor.burst = 1;
     liveSensor.shake = 0.9;
     impulse((ing.spikes - 0.3) * 2.6, 1.15 + ing.energy * 1.7, (ing.hue / 180 - 1) * 1.6);
@@ -654,6 +699,8 @@ export function ConjureApp({
     }
     const motion = spinSnapshot();
     rememberMotion(motion);
+    const physicsShot = physicsSnapshot();
+    const materialShot = materialNote(effectsFor(quality ?? qualityFromTier("mid", false, true)));
     let earlyStill: string | null = null;
     for (let second = 6; second > 0; second -= 1) {
       useBrew.getState().setRecording(second);
@@ -688,6 +735,8 @@ export function ConjureApp({
       createdAt: Date.now(),
       still: earlyStill ?? takeStill() ?? undefined,
       spin: motion,
+      physics: physicsShot,
+      material: materialShot,
     };
     const prior = sessionStorage.getItem("conjure.lineage");
     if (prior) {
@@ -746,6 +795,7 @@ export function ConjureApp({
     }
     saveName(cleaned);
     useBrew.getState().setName(cleaned);
+    if (!useBrew.getState().started) resetPhysics((Date.now() & 0x7fffffff) || 1);
     useBrew.getState().start();
     try {
       const snap = await roomCall({
@@ -806,6 +856,8 @@ export function ConjureApp({
       contributors: [{ id: deviceRef.current, name: state.name || "You", included: true }],
       createdAt: Date.now(),
       spin: spinSnapshot(),
+      physics: physicsSnapshot(),
+      material: materialNote(effectsFor(quality ?? qualityFromTier("mid", false, true))),
     };
     saveCreation(creation);
     setGallery(loadCreations());
@@ -849,6 +901,16 @@ export function ConjureApp({
       <div
         className="stage"
         onPointerDown={(event) => {
+          if (grabPhysics(event.clientX, event.clientY)) {
+            try {
+              event.currentTarget.setPointerCapture(event.pointerId);
+            } catch {
+              /* synthetic pointers still stir */
+            }
+            pointerDown(event.pointerId, event.clientX, event.clientY);
+            haptic(12);
+            return;
+          }
           if (sceneMoving({ started, reduced, frozen: masterMix.freeze })) {
             try {
               event.currentTarget.setPointerCapture(event.pointerId);
@@ -862,6 +924,23 @@ export function ConjureApp({
           dragging.current = true;
         }}
         onPointerUp={(event) => {
+          if (holdingPhysics()) {
+            try {
+              if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+                event.currentTarget.releasePointerCapture(event.pointerId);
+              }
+            } catch {
+              /* ignore */
+            }
+            const speed = pointerUp(event.pointerId);
+            releasePhysics(flingVel.x * 10, -flingVel.y * 8 + 0.4, flingVel.y * 4);
+            if (isFling(speed)) {
+              haptic([12, 28, 18]);
+              impulse(flingVel.y * 0.45, flingVel.x * 0.55, 0);
+              grant("fling");
+            }
+            return;
+          }
           if (sceneMoving({ started, reduced, frozen: masterMix.freeze })) {
             try {
               if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
@@ -874,6 +953,7 @@ export function ConjureApp({
             if (isFling(speed)) {
               haptic([12, 28, 18]);
               impulse(flingVel.y * 1.8, flingVel.x * 2.2, 0);
+              knockAll(flingVel.x * 5, 1.1, flingVel.y * 3);
               flashPulse("#fff6df", 700);
               burstSparks("#f6efe4", 10);
               grant("fling");
@@ -883,6 +963,7 @@ export function ConjureApp({
           dragging.current = false;
         }}
         onPointerCancel={(event) => {
+          if (holdingPhysics()) releasePhysics(0, 0.2, 0);
           pointerUp(event.pointerId);
           dragging.current = false;
         }}
@@ -890,6 +971,11 @@ export function ConjureApp({
           dragging.current = false;
         }}
         onPointerMove={(event) => {
+          if (holdingPhysics()) {
+            dragPhysics(event.clientX, event.clientY);
+            pointerMove(event.pointerId, event.clientX, event.clientY);
+            return;
+          }
           if (sceneMoving({ started, reduced, frozen: masterMix.freeze })) {
             const delta = pointerMove(event.pointerId, event.clientX, event.clientY);
             if (!delta) return;
@@ -1090,9 +1176,7 @@ export function ConjureApp({
               type="button"
               className="start-btn"
               onClick={() => {
-                unlockAudio();
-                useBrew.getState().start();
-                grant("start");
+                ensureLive();
                 say("The cauldron is open.");
               }}
             >
@@ -1534,6 +1618,12 @@ export function ConjureApp({
                 {t("mint.spins")} {review.spin.spinCount}
               </p>
             )}
+            {review.material && (
+              <p className="muted">
+                {t("mint.tier")} {review.material.tier} · {t("mint.gravity")} {review.physics?.gravity ?? 9.8} ·{" "}
+                {t("mint.bodies")} {review.physics?.bodies.length ?? 0} · IOR {review.material.ior} · {review.material.toneMapping}
+              </p>
+            )}
             <div className="row wrap">
               <button type="button" className="emphasis" onClick={() => void shareCreation(review)}>
                 <XeIcon emoji="🔗" />
@@ -1652,6 +1742,8 @@ export function ConjureApp({
                     vibe: review.vibe,
                     chainId: CHAIN.id,
                     royaltyBps: CHAIN.royaltyBps,
+                    physics: review.physics ?? null,
+                    material: review.material ?? null,
                   });
                   const file = new Blob([JSON.stringify(meta, null, 2)], { type: "application/json" });
                   const url = URL.createObjectURL(file);
