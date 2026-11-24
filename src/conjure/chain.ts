@@ -113,7 +113,7 @@ export async function mintWithWallet(to: string, tokenUri: string): Promise<stri
 }
 
 function encodeMint(to: string, tokenUri: string): string {
-  const selector = "0x40c10f19";
+  const selector = "0xd0def521";
   const addr = to.toLowerCase().replace(/^0x/, "").padStart(64, "0");
   const offset = (64).toString(16).padStart(64, "0");
   const bytes = new TextEncoder().encode(tokenUri);

@@ -1,26 +1,111 @@
 # Conjure
 
-Friends share one cauldron. Each phone drops an ingredient. Together they shape a living brew, then capture it, share a link that replays it, and mint it on Robinhood Chain testnet when a collection contract is configured.
+Friends share one cauldron. Drop an ingredient, stir it with a sensor or a finger, capture the brew, and replay it from a link. When a collection contract is set, you can mint that brew on Robinhood Chain testnet and transfer the NFT from your own wallet.
+
+Xero Emoji by Max Infeld, CC BY 4.0 — https://github.com/maximusmaximus/xeroemoji
 
 ## Try it
 
-1. Open the cauldron and tap **Start**.
-2. Tap an ingredient. It drops in.
-3. Tap **Capture**, then **Share**. The link replays the brew.
+1. Tap **Start**.
+2. Drop Ember, Moss, Moon, Salt, Honey, Frost, Ink, or Spark. Keys 1–8 do the same.
+3. Drag the moving brew and let go to fling it. A phone that supports vibration gives a short haptic tick.
+4. After the first drop, open **Mic**, **Camera**, or **Motion**. Only levels leave the phone.
+5. Tap **Capture** for a still, a 6 second loop, and a recipe. **Share** copies a replay link. **Remix** keeps the lineage.
+6. **Gather** opens a four-character code. Up to 12 players join. Others can watch. The host can lock, remove, or hand off the room. A capture asks each guest Include me / Leave me out. Silence leaves them out.
 
-A circle opens from **Gather** after you have used, or declined, a sensor. The host shows a four-character code. Other phones join that code. Raw audio and camera frames stay on the device.
+![Cauldron on a laptop](screenshots/layout-desktop-wait.png)
 
-## Chain
+![Cauldron on a phone](screenshots/footer-mobile.png)
 
-Robinhood Chain testnet only (chain id 46630, public RPC `https://rpc.testnet.chain.robinhood.com`). No keys are stored in the repo. See `src/conjure/chain.ts`.
+## Levels
 
-## Tests
+Use earns XP, a daily streak, and badges. The same action only counts a few times each day.
 
-- `npm test` runs unit tests, including brew mapping, consent, and mint cap.
-- `node scripts/check-manifest.mjs` checks shipped artwork against `assets/MANIFEST.json`.
+| Level | XP | What opens |
+| --- | --- | --- |
+| Spark | 0 | Start, ingredients, fling |
+| Stir | 24 | The streak and badges start to fill in |
+| Circle | 70 | Gather is part of the loop |
+| Keep | 120 | Wallet: testnet mints and ERC-721 transfer |
+| Master | 180 | Highest resolution the GPU allows, plus Tools |
 
-## License
+**Next** stays on screen and names the following action. Short tips explain a step once. Dismiss a tip with X or a sideways swipe. A dismissed tip does not return on this device.
 
-Code in this app is MIT (`LICENSE`). Third-party artwork is listed in `assets/MANIFEST.json`.
+**Master** raises the drawing buffer to the screen's device pixel ratio, capped by `MAX_TEXTURE_SIZE` and an 8 megapixel budget, and never above 3. Tools add stir, hue, swirl, bloom, and freeze. The mesh and ember count step up with that tier.
 
-Xero Emoji by Max Infeld, CC BY 4.0 — https://github.com/maximusmaximus/xeroemoji
+## Wallet
+
+Robinhood Chain testnet only. Chain id **46630**. Public RPC `https://rpc.testnet.chain.robinhood.com`. Explorer `https://explorer.testnet.chain.robinhood.com`.
+
+Connect the wallet already in the browser. You pay gas. The app does not hold a relayer key and does not switch the wallet to mainnet.
+
+`CHAIN.contract` in `src/conjure/chain.ts` is a public constant. It is empty in this build, so mint and transfer do not submit a transaction. When that constant is a contract address, mint calls `mint(address,string)` and transfer calls ERC-721 `transferFrom`, signed in the connected wallet through viem. Reads use a wagmi public client on the same testnet. Owned token ids come from `Transfer` logs. Local mint notes stay on this device.
+
+Daily mint touches are capped at 5 per device.
+
+## Board
+
+The board is opt-in. Open it from the level sheet, set a pseudonym or an emoji handle, and choose **Show me on the board**. Anyone can read the list. Your row is posted only after you opt in. The row is a handle, XP, streak, and level. No wallet, email, or real name is stored. **Hide me and delete my row** removes it. Until you opt in, your score stays on this device.
+
+## Privacy and sensors
+
+Mic, camera, and motion start only after you tap them. Raw audio and camera frames stay on the device. A circle receives loudness, pitch, a hue, tilt, and wave. A color sample is a number. Group capture asks before anyone but the host is included. There is no chat. Display name and an anonymous device id live in this browser. Room state is stored so other phones can join the same code. Share and remix counts are first-party. There is no third-party analytics.
+
+## Architecture
+
+The cauldron is a React route. Brew math in `src/conjure/brew.ts` turns drops and sensor levels into hue, energy, and form. `src/conjure/scene.tsx` draws that with three.js on WebGL2. If WebGL2 is missing, `src/conjure/flat.tsx` draws the same brew on a 2D canvas. A WebGPU adapter, when present, only picks the quality tier.
+
+Rooms poll `POST /api/conjure` about once a second. Tables live in `migrations/0002_conjure.sql` and `migrations/0003_board.sql`. Rows are unowned: there is no account system. Preview uses embedded Postgres when `DATABASE_URL` is unset. A hosted database uses that URL.
+
+Creations, tips, XP, and the opt-in choice persist in `localStorage`. A share link carries the recipe in the query string so a replay does not need the original phone.
+
+## Stack
+
+- TanStack Start, React 19, Vite
+- three.js and React Three Fiber
+- Tailwind CSS v4
+- zustand
+- viem and wagmi for the testnet wallet
+- Xero Emoji SVGs, self-hosted under `public/xeroemoji/`
+
+## Setup
+
+```bash
+npm install
+npm run dev
+```
+
+No secrets are required. Do not put a relayer key, Pinata JWT, or mainnet RPC in the repo. The only chain constant meant to change in public is `CHAIN.contract`.
+
+## Scripts
+
+| Script | What it does |
+| --- | --- |
+| `npm run dev` | Dev server |
+| `npm run build` | Production build, copies the embedded database assets, applies SQL when `DATABASE_URL` is set |
+| `npm run preview` | Serves the production build |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm test` | Unit tests, including brew, consent, XP, fling, and pixel-ratio caps |
+| `npm run db:migrate` | Applies `migrations/*.sql` when `DATABASE_URL` is set |
+| `node scripts/check-manifest.mjs` | Checks artwork licenses in `assets/MANIFEST.json` |
+
+## Testing
+
+`npm test` covers brew mapping, consent defaults, the mint-touch cap, level thresholds, daily XP caps, streaks, tip dismissal, handle filtering, fling decay, and the master pixel-ratio cap.
+
+The contract in `contracts/Conjure.sol` is a minimal ERC-721 with a fixed 5% ERC-2981 royalty and `transferFrom`. This environment does not run Foundry, so that file is not executed here.
+
+## Deploy
+
+`npm run build` writes a Vercel-ready output. Set `DATABASE_URL` on the host if rooms and the board should survive a restart. Leave it unset and the app still runs with the embedded database for that process. Wallet traffic uses the public testnet RPC from the browser. Nothing in the deploy step adds a paid service.
+
+## Asset licenses
+
+Code in this app is MIT (`LICENSE`).
+
+| Asset | License |
+| --- | --- |
+| Cauldron, brew, and forms | CC0-1.0. Drawn in the browser. No external mesh. |
+| Icons | Xero Emoji by Max Infeld, CC BY 4.0. https://github.com/maximusmaximus/xeroemoji |
+
+The footer uses the Xero laptop emoji as the link to https://github.com/maximusmaximus/conjure.

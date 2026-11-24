@@ -147,3 +147,18 @@ export function trackLocal(name: "share" | "remix" | "capture" | "mint"): void {
   cur[name] = (cur[name] ?? 0) + 1;
   localStorage.setItem(EVENTS, JSON.stringify(cur));
 }
+
+export type MintNote = { hash: string; uri: string; at: number };
+
+const MINTS = "conjure.mints.v1";
+
+export function loadMints(): MintNote[] {
+  const list = readJson<MintNote[]>(MINTS, []);
+  return Array.isArray(list) ? list : [];
+}
+
+export function saveMint(note: MintNote): void {
+  const list = loadMints().filter((item) => item.hash !== note.hash);
+  list.unshift(note);
+  localStorage.setItem(MINTS, JSON.stringify(list.slice(0, 40)));
+}

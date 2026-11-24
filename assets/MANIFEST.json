@@ -449,6 +449,14 @@
       "source": "Xero Emoji",
       "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/2b50.svg",
       "license": "CC-BY-4.0"
+    },
+    {
+      "path": "public/xeroemoji/svg/1f4bb.svg",
+      "title": "Xero Emoji 1f4bb",
+      "author": "Max Infeld",
+      "source": "Xero Emoji",
+      "url": "https://github.com/maximusmaximus/xeroemoji/blob/v1.0.2/svg/1f4bb.svg",
+      "license": "CC-BY-4.0"
     }
   ]
 }

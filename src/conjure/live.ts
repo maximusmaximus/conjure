@@ -42,3 +42,12 @@ export function setWebglOk(ok: boolean): void {
 export function webglOk(): boolean {
   return webgl;
 }
+
+/** Master tools. Mutated in place, same as the sensors. */
+export const masterMix = {
+  stir: 0.35,
+  hue: 0,
+  swirl: 0.45,
+  bloom: 0.55,
+  freeze: false,
+};

@@ -15,6 +15,10 @@ function PrivacyPage() {
       <p>The host owns the room, can remove someone, and can lock the code. There is no chat.</p>
       <p>Your display name and an anonymous device id live in this browser. Room state is stored so other phones can join the same code.</p>
       <p>Share and remix counts are first-party. No third-party analytics.</p>
+      <p>
+        The board is opt-in. It stores a handle you choose, a score, and a streak. It does not store your
+        wallet, email, or real name. Hide deletes that row.
+      </p>
     </PageFrame>
   );
 }

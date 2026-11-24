@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { blendSensors, computeBrew, type Drop, type Vibe } from "./brew";
-import { liveSensor, remoteSensor, setGrabStill } from "./live";
+import { liveSensor, masterMix, remoteSensor, setGrabStill } from "./live";
 
 /** Drawn cauldron used when WebGL is missing. Same brew math as the 3D stage. */
 export function FlatBrew({
@@ -31,9 +31,10 @@ export function FlatBrew({
       ctx.fillStyle = "#110e0c";
       ctx.fillRect(0, 0, width, height);
       const brew = computeBrew(drops, blendSensors([liveSensor, remoteSensor]), vibe);
-      time += reduced ? 0.004 : 0.016;
-      const cx = width / 2;
-      const cy = height * 0.58;
+      const pace = masterMix.freeze ? 0 : reduced ? 0.004 : 0.016 * (0.7 + masterMix.stir);
+      time += pace;
+      const cx = width / 2 + liveSensor.tiltX * width * 0.08;
+      const cy = height * 0.58 + liveSensor.tiltY * height * 0.05;
       const radius = Math.min(width, height) * 0.22 * brew.scale;
       const glow = ctx.createRadialGradient(cx, cy - radius, radius * 0.2, cx, cy - radius, radius * 1.8);
       glow.addColorStop(0, brew.color);
@@ -44,7 +45,7 @@ export function FlatBrew({
       ctx.fill();
       ctx.fillStyle = brew.color;
       ctx.beginPath();
-      const wobble = reduced ? 0 : Math.sin(time * (2 + brew.swirl)) * 8 * brew.spikes;
+      const wobble = reduced || masterMix.freeze ? 0 : Math.sin(time * (2 + brew.swirl * (0.5 + masterMix.swirl))) * 8 * brew.spikes;
       ctx.ellipse(cx, cy - radius * 1.15, radius * 0.72 + wobble, radius * 0.85, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = "#3a2c24";

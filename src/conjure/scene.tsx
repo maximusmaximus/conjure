@@ -8,7 +8,8 @@ import {
   type FormId,
   type Vibe,
 } from "./brew";
-import { liveSensor, remoteSensor, setEnterAR, setExportGlb, setGrabStill } from "./live";
+import { liveSensor, masterMix, remoteSensor, setEnterAR, setExportGlb, setGrabStill } from "./live";
+import { flingVel } from "./fling";
 import { blendSensors } from "./brew";
 import type { Quality } from "./quality";
 
@@ -34,23 +35,27 @@ function Rig({
   form,
   reduced,
   particles,
+  detail,
 }: {
   drops: Drop[];
   vibe: Vibe;
   form: FormId;
   reduced: boolean;
   particles: number;
+  detail: number;
 }) {
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.1);
-    if (!reduced) decaySensor(liveSensor, dt);
+    if (!reduced && !masterMix.freeze) decaySensor(liveSensor, dt);
     else {
       liveSensor.burst = 0;
       liveSensor.shake = 0;
       liveSensor.wave *= 0.9;
     }
   });
-  return <BrewMesh drops={drops} vibe={vibe} form={form} reduced={reduced} particles={particles} />;
+  return (
+    <BrewMesh drops={drops} vibe={vibe} form={form} reduced={reduced} particles={particles} detail={detail} />
+  );
 }
 
 function BrewMesh({
@@ -59,12 +64,14 @@ function BrewMesh({
   form,
   reduced,
   particles,
+  detail,
 }: {
   drops: Drop[];
   vibe: Vibe;
   form: FormId;
   reduced: boolean;
   particles: number;
+  detail: number;
 }) {
   const liquid = useRef<THREE.ShaderMaterial>(null);
   const skin = useRef<THREE.ShaderMaterial>(null);
@@ -91,22 +98,31 @@ function BrewMesh({
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.1);
     const brew = mixNow(drops, vibe);
-    const speed = reduced ? 0.15 : 1;
+    const speed = masterMix.freeze ? 0 : reduced ? 0.15 : 1 + masterMix.stir;
     liquidUniforms.uTime.value += dt * speed;
     skinUniforms.uTime.value += dt * speed;
     liquidUniforms.uColor.value.set(brew.color);
-    liquidUniforms.uEnergy.value = brew.energy;
     skinUniforms.uColor.value.set(brew.color);
-    skinUniforms.uSpikes.value = brew.spikes;
-    skinUniforms.uGlow.value = brew.glow;
+    if (masterMix.hue) {
+      liquidUniforms.uColor.value.offsetHSL(masterMix.hue / 360, 0, 0);
+      skinUniforms.uColor.value.offsetHSL(masterMix.hue / 360, 0, 0);
+    }
+    liquidUniforms.uEnergy.value = brew.energy * (masterMix.freeze ? 0.35 : 1);
+    skinUniforms.uSpikes.value = brew.spikes * (0.55 + masterMix.swirl);
+    skinUniforms.uGlow.value = brew.glow * (0.45 + masterMix.bloom * 1.4);
     if (orb.current) {
-      const swirl = reduced ? 0.15 : brew.swirl;
-      orb.current.rotation.y += dt * (0.35 + swirl);
+      const swirl = masterMix.freeze ? 0 : (reduced ? 0.12 : brew.swirl) * (0.35 + masterMix.swirl * 1.6);
+      orb.current.rotation.y += dt * swirl;
       orb.current.rotation.z = liveSensor.tiltX * 0.35 + remoteSensor.tiltX * 0.2;
       orb.current.rotation.x = 0.2 + liveSensor.tiltY * 0.25;
       const s = brew.scale * (1 + liveSensor.burst * 0.12);
       orb.current.scale.setScalar(s);
-      orb.current.position.y = 1.62 + Math.sin(skinUniforms.uTime.value * 1.4) * (reduced ? 0.01 : 0.06);
+      const bob = Math.sin(skinUniforms.uTime.value * 1.4) * (reduced || masterMix.freeze ? 0.01 : 0.06);
+      orb.current.position.set(
+        masterMix.freeze ? 0 : flingVel.x * 0.55,
+        1.62 + bob,
+        masterMix.freeze ? 0 : flingVel.y * 0.32,
+      );
     }
   });
 
@@ -117,7 +133,7 @@ function BrewMesh({
         <meshStandardMaterial color="#3a2e28" roughness={1} />
       </mesh>
       <mesh position={[0, 0, 0]} castShadow={false}>
-        <latheGeometry args={[potPoints, 40]} />
+        <latheGeometry args={[potPoints, detail >= 5 ? 64 : 40]} />
         <meshStandardMaterial color="#8d6b52" roughness={0.62} metalness={0.28} />
       </mesh>
       <mesh position={[0, 1.02, 0]} rotation={[Math.PI / 2, 0, 0]}>
@@ -144,7 +160,7 @@ function BrewMesh({
         />
       </mesh>
       <group ref={orb} position={[0, 1.62, 0]}>
-        <FormMesh form={formRef} uniforms={skinUniforms} />
+        <FormMesh form={formRef} uniforms={skinUniforms} detail={detail} />
       </group>
       <Embers drops={drops} vibe={vibe} count={particles} />
       <Falls drops={drops} />
@@ -174,6 +190,7 @@ function Skin({
 function FormMesh({
   form,
   uniforms,
+  detail,
 }: {
   form: FormId;
   uniforms: {
@@ -182,11 +199,13 @@ function FormMesh({
     uSpikes: { value: number };
     uGlow: { value: number };
   };
+  detail: number;
 }) {
+  const fine = detail >= 5;
   if (form === "spire") {
     return (
       <mesh>
-        <coneGeometry args={[0.48, 1.35, 5]} />
+        <coneGeometry args={[0.48, 1.35, fine ? 12 : 5]} />
         <Skin uniforms={uniforms} />
       </mesh>
     );
@@ -195,7 +214,7 @@ function FormMesh({
     return (
       <group>
         <mesh>
-          <sphereGeometry args={[0.34, 24, 16]} />
+          <sphereGeometry args={fine ? [0.34, 40, 28] : [0.34, 24, 16]} />
           <Skin uniforms={uniforms} />
         </mesh>
         {[0, 1, 2, 3, 4].map((i) => (
@@ -207,7 +226,7 @@ function FormMesh({
               Math.sin((i / 5) * Math.PI * 2) * 0.42,
             ]}
           >
-            <sphereGeometry args={[0.22, 16, 12]} />
+            <sphereGeometry args={fine ? [0.22, 24, 16] : [0.22, 16, 12]} />
             <Skin uniforms={uniforms} />
           </mesh>
         ))}
@@ -217,14 +236,14 @@ function FormMesh({
   if (form === "ribbon") {
     return (
       <mesh>
-        <torusKnotGeometry args={[0.38, 0.12, 80, 8]} />
+        <torusKnotGeometry args={fine ? [0.38, 0.12, 160, 12] : [0.38, 0.12, 80, 8]} />
         <Skin uniforms={uniforms} />
       </mesh>
     );
   }
   return (
     <mesh>
-      <icosahedronGeometry args={[0.62, 3]} />
+      <icosahedronGeometry args={[0.62, fine ? 5 : Math.min(4, Math.max(2, detail))]} />
       <Skin uniforms={uniforms} />
     </mesh>
   );
@@ -250,7 +269,7 @@ function emberSprite(): THREE.Texture {
 function Embers({ drops, vibe, count }: { drops: Drop[]; vibe: Vibe; count: number }) {
   const ref = useRef<THREE.Points>(null);
   const sprite = useMemo(() => emberSprite(), []);
-  const countUsed = Math.max(12, Math.min(count, 480));
+  const countUsed = Math.max(12, Math.min(count, 800));
   const positions = useMemo(() => {
     const arr = new Float32Array(countUsed * 3);
     for (let i = 0; i < countUsed; i += 1) {
@@ -272,17 +291,26 @@ function Embers({ drops, vibe, count }: { drops: Drop[]; vibe: Vibe; count: numb
     const geo = ref.current?.geometry;
     const attr = geo?.getAttribute("position") as THREE.BufferAttribute | undefined;
     if (!attr) return;
+    const kickX = masterMix.freeze ? 0 : flingVel.x * 36;
+    const kickZ = masterMix.freeze ? 0 : flingVel.y * 22;
     for (let i = 0; i < countUsed; i += 1) {
-      let y = attr.getY(i) + dt * speeds[i] * (0.6 + brew.energy);
+      if (masterMix.freeze) break;
+      let y = attr.getY(i) + dt * speeds[i] * (0.6 + brew.energy) * (0.65 + masterMix.stir);
       if (y > 2.6) y = 0.6;
-      const spread = 0.15 + brew.spikes * 0.2;
+      const spread = (0.15 + brew.spikes * 0.2) * (0.6 + masterMix.swirl);
+      let x = attr.getX(i) + Math.sin(y * 3 + i) * dt * spread + kickX * dt;
+      let z = attr.getZ(i) + kickZ * dt;
+      if (x > 1.8 || x < -1.8) x = (Math.random() - 0.5) * 1.2;
+      if (z > 1.8 || z < -1.8) z = (Math.random() - 0.5) * 1.2;
+      attr.setX(i, x);
       attr.setY(i, y);
-      attr.setX(i, attr.getX(i) + Math.sin(y * 3 + i) * dt * spread);
+      attr.setZ(i, z);
     }
     attr.needsUpdate = true;
     if (ref.current) {
       (ref.current.material as THREE.PointsMaterial).color.set(brew.color);
-      (ref.current.material as THREE.PointsMaterial).size = 0.035 + brew.glow * 0.02;
+      (ref.current.material as THREE.PointsMaterial).size =
+        (0.035 + brew.glow * 0.02) * (0.65 + masterMix.bloom);
     }
   });
 
@@ -454,6 +482,11 @@ export function CauldronScene({
       onCreated={({ gl, camera }) => {
         gl.setClearColor("#110e0c", 1);
         camera.lookAt(0, 1.15, 0);
+        if (quality.master) {
+          gl.outputColorSpace = THREE.SRGBColorSpace;
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.toneMappingExposure = 1.05;
+        }
       }}
     >
       <group ref={root}>
@@ -467,6 +500,7 @@ export function CauldronScene({
           form={form}
           reduced={reduced}
           particles={quality.particles}
+          detail={quality.detail}
         />
       </group>
       <Bridges root={root} />

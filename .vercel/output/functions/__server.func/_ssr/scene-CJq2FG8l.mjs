@@ -1,7 +1,7 @@
 import { o as __toESM } from "../_runtime.mjs";
-import { N as require_jsx_runtime, P as require_react, a as CanvasTexture, k as Vector2, n as useFrame, r as useThree, s as Color, t as Canvas, x as Object3D } from "../_libs/@react-three/fiber+[...].mjs";
-import { a as decaySensor, c as remoteSensor, d as setGrabStill, i as computeBrew, l as setEnterAR, o as liveSensor, r as blendSensors, u as setExportGlb } from "./app-BRHp-Cky.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/scene-Cxy5adLA.js
+import { E as SRGBColorSpace, N as require_jsx_runtime, P as require_react, a as CanvasTexture, k as Vector2, n as useFrame, r as useThree, s as Color, t as Canvas, x as Object3D } from "../_libs/@react-three/fiber+[...].mjs";
+import { a as decaySensor, d as setEnterAR, f as setExportGlb, i as computeBrew, l as masterMix, o as flingVel, p as setGrabStill, r as blendSensors, s as liveSensor, u as remoteSensor } from "./app-JLROx8KU.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/scene-CJq2FG8l.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var potPoints = (() => {
@@ -17,10 +17,10 @@ var potPoints = (() => {
 function mixNow(drops, vibe) {
 	return computeBrew(drops, blendSensors([liveSensor, remoteSensor]), vibe);
 }
-function Rig({ drops, vibe, form, reduced, particles }) {
+function Rig({ drops, vibe, form, reduced, particles, detail }) {
 	useFrame((_, delta) => {
 		const dt = Math.min(delta, .1);
-		if (!reduced) decaySensor(liveSensor, dt);
+		if (!reduced && !masterMix.freeze) decaySensor(liveSensor, dt);
 		else {
 			liveSensor.burst = 0;
 			liveSensor.shake = 0;
@@ -32,10 +32,11 @@ function Rig({ drops, vibe, form, reduced, particles }) {
 		vibe,
 		form,
 		reduced,
-		particles
+		particles,
+		detail
 	});
 }
-function BrewMesh({ drops, vibe, form, reduced, particles }) {
+function BrewMesh({ drops, vibe, form, reduced, particles, detail }) {
 	const liquid = (0, import_react.useRef)(null);
 	(0, import_react.useRef)(null);
 	const orb = (0, import_react.useRef)(null);
@@ -54,22 +55,27 @@ function BrewMesh({ drops, vibe, form, reduced, particles }) {
 	useFrame((_, delta) => {
 		const dt = Math.min(delta, .1);
 		const brew = mixNow(drops, vibe);
-		const speed = reduced ? .15 : 1;
+		const speed = masterMix.freeze ? 0 : reduced ? .15 : 1 + masterMix.stir;
 		liquidUniforms.uTime.value += dt * speed;
 		skinUniforms.uTime.value += dt * speed;
 		liquidUniforms.uColor.value.set(brew.color);
-		liquidUniforms.uEnergy.value = brew.energy;
 		skinUniforms.uColor.value.set(brew.color);
-		skinUniforms.uSpikes.value = brew.spikes;
-		skinUniforms.uGlow.value = brew.glow;
+		if (masterMix.hue) {
+			liquidUniforms.uColor.value.offsetHSL(masterMix.hue / 360, 0, 0);
+			skinUniforms.uColor.value.offsetHSL(masterMix.hue / 360, 0, 0);
+		}
+		liquidUniforms.uEnergy.value = brew.energy * (masterMix.freeze ? .35 : 1);
+		skinUniforms.uSpikes.value = brew.spikes * (.55 + masterMix.swirl);
+		skinUniforms.uGlow.value = brew.glow * (.45 + masterMix.bloom * 1.4);
 		if (orb.current) {
-			const swirl = reduced ? .15 : brew.swirl;
-			orb.current.rotation.y += dt * (.35 + swirl);
+			const swirl = masterMix.freeze ? 0 : (reduced ? .12 : brew.swirl) * (.35 + masterMix.swirl * 1.6);
+			orb.current.rotation.y += dt * swirl;
 			orb.current.rotation.z = liveSensor.tiltX * .35 + remoteSensor.tiltX * .2;
 			orb.current.rotation.x = .2 + liveSensor.tiltY * .25;
 			const s = brew.scale * (1 + liveSensor.burst * .12);
 			orb.current.scale.setScalar(s);
-			orb.current.position.y = 1.62 + Math.sin(skinUniforms.uTime.value * 1.4) * (reduced ? .01 : .06);
+			const bob = Math.sin(skinUniforms.uTime.value * 1.4) * (reduced || masterMix.freeze ? .01 : .06);
+			orb.current.position.set(masterMix.freeze ? 0 : flingVel.x * .55, 1.62 + bob, masterMix.freeze ? 0 : flingVel.y * .32);
 		}
 	});
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("group", { children: [
@@ -96,7 +102,7 @@ function BrewMesh({ drops, vibe, form, reduced, particles }) {
 				0
 			],
 			castShadow: false,
-			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("latheGeometry", { args: [potPoints, 40] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("meshStandardMaterial", {
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("latheGeometry", { args: [potPoints, detail >= 5 ? 64 : 40] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("meshStandardMaterial", {
 				color: "#8d6b52",
 				roughness: .62,
 				metalness: .28
@@ -172,7 +178,8 @@ function BrewMesh({ drops, vibe, form, reduced, particles }) {
 			],
 			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FormMesh, {
 				form: formRef,
-				uniforms: skinUniforms
+				uniforms: skinUniforms,
+				detail
 			})
 		}),
 		/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Embers, {
@@ -190,13 +197,18 @@ function Skin({ uniforms }) {
 		fragmentShader: skinFrag
 	});
 }
-function FormMesh({ form, uniforms }) {
+function FormMesh({ form, uniforms, detail }) {
+	const fine = detail >= 5;
 	if (form === "spire") return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("mesh", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("coneGeometry", { args: [
 		.48,
 		1.35,
-		5
+		fine ? 12 : 5
 	] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skin, { uniforms })] });
-	if (form === "bloom") return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("group", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("mesh", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("sphereGeometry", { args: [
+	if (form === "bloom") return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("group", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("mesh", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("sphereGeometry", { args: fine ? [
+		.34,
+		40,
+		28
+	] : [
 		.34,
 		24,
 		16
@@ -212,19 +224,28 @@ function FormMesh({ form, uniforms }) {
 			.05,
 			Math.sin(i / 5 * Math.PI * 2) * .42
 		],
-		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("sphereGeometry", { args: [
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("sphereGeometry", { args: fine ? [
+			.22,
+			24,
+			16
+		] : [
 			.22,
 			16,
 			12
 		] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skin, { uniforms })]
 	}, i))] });
-	if (form === "ribbon") return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("mesh", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("torusKnotGeometry", { args: [
+	if (form === "ribbon") return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("mesh", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("torusKnotGeometry", { args: fine ? [
+		.38,
+		.12,
+		160,
+		12
+	] : [
 		.38,
 		.12,
 		80,
 		8
 	] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skin, { uniforms })] });
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("mesh", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("icosahedronGeometry", { args: [.62, 3] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skin, { uniforms })] });
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("mesh", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("icosahedronGeometry", { args: [.62, fine ? 5 : Math.min(4, Math.max(2, detail))] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Skin, { uniforms })] });
 }
 function emberSprite() {
 	const canvas = document.createElement("canvas");
@@ -246,7 +267,7 @@ function emberSprite() {
 function Embers({ drops, vibe, count }) {
 	const ref = (0, import_react.useRef)(null);
 	const sprite = (0, import_react.useMemo)(() => emberSprite(), []);
-	const countUsed = Math.max(12, Math.min(count, 480));
+	const countUsed = Math.max(12, Math.min(count, 800));
 	const positions = (0, import_react.useMemo)(() => {
 		const arr = new Float32Array(countUsed * 3);
 		for (let i = 0; i < countUsed; i += 1) {
@@ -266,17 +287,25 @@ function Embers({ drops, vibe, count }) {
 		const brew = mixNow(drops, vibe);
 		const attr = (ref.current?.geometry)?.getAttribute("position");
 		if (!attr) return;
+		const kickX = masterMix.freeze ? 0 : flingVel.x * 36;
+		const kickZ = masterMix.freeze ? 0 : flingVel.y * 22;
 		for (let i = 0; i < countUsed; i += 1) {
-			let y = attr.getY(i) + dt * speeds[i] * (.6 + brew.energy);
+			if (masterMix.freeze) break;
+			let y = attr.getY(i) + dt * speeds[i] * (.6 + brew.energy) * (.65 + masterMix.stir);
 			if (y > 2.6) y = .6;
-			const spread = .15 + brew.spikes * .2;
+			const spread = (.15 + brew.spikes * .2) * (.6 + masterMix.swirl);
+			let x = attr.getX(i) + Math.sin(y * 3 + i) * dt * spread + kickX * dt;
+			let z = attr.getZ(i) + kickZ * dt;
+			if (x > 1.8 || x < -1.8) x = (Math.random() - .5) * 1.2;
+			if (z > 1.8 || z < -1.8) z = (Math.random() - .5) * 1.2;
+			attr.setX(i, x);
 			attr.setY(i, y);
-			attr.setX(i, attr.getX(i) + Math.sin(y * 3 + i) * dt * spread);
+			attr.setZ(i, z);
 		}
 		attr.needsUpdate = true;
 		if (ref.current) {
 			ref.current.material.color.set(brew.color);
-			ref.current.material.size = .035 + brew.glow * .02;
+			ref.current.material.size = (.035 + brew.glow * .02) * (.65 + masterMix.bloom);
 		}
 	});
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("points", {
@@ -445,6 +474,11 @@ function CauldronScene({ drops, vibe, form, quality, reduced }) {
 		onCreated: ({ gl, camera }) => {
 			gl.setClearColor("#110e0c", 1);
 			camera.lookAt(0, 1.15, 0);
+			if (quality.master) {
+				gl.outputColorSpace = SRGBColorSpace;
+				gl.toneMapping = 4;
+				gl.toneMappingExposure = 1.05;
+			}
 		},
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("group", {
 			ref: root,
@@ -482,7 +516,8 @@ function CauldronScene({ drops, vibe, form, quality, reduced }) {
 					vibe,
 					form,
 					reduced,
-					particles: quality.particles
+					particles: quality.particles,
+					detail: quality.detail
 				})
 			]
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bridges, { root })]

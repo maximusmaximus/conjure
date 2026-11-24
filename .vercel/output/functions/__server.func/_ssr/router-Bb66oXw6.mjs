@@ -4,7 +4,7 @@ import { _ as createFileRoute, b as useRouter, d as Scripts, f as HeadContent, g
 import { c as stripSearchParams } from "../_libs/@tanstack/router-core+[...].mjs";
 import { t as TriangleAlert } from "../_libs/lucide-react.mjs";
 import { a as number, c as union, i as literal, n as array, o as object, r as boolean, s as string, t as _enum } from "../_libs/zod.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-CoYPdMwM.js
+//#region node_modules/.nitro/vite/services/ssr/assets/router-Bb66oXw6.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -342,7 +342,7 @@ function PreviewHostBridge() {
 	}, [router]);
 	return null;
 }
-var styles_default = "/assets/styles-BWk4HMio.css";
+var styles_default = "/assets/styles-OUU3OIsi.css";
 var Route$5 = createRootRoute({
 	head: () => ({
 		meta: [
@@ -395,11 +395,37 @@ var Route$5 = createRootRoute({
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("head", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(HeadContent, {}) }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("body", { children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PreviewHostBridge, {}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AuthProvider, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Outlet, {}) }),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+				className: "made-in",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+						className: "made-in-git",
+						href: "https://github.com/maximusmaximus/conjure",
+						target: "_blank",
+						rel: "noopener noreferrer",
+						"aria-label": "GitHub",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+							src: "/xeroemoji/svg/1f4bb.svg",
+							alt: "",
+							width: "16",
+							height: "16"
+						})
+					}),
+					"made with ❤️ in SF by",
+					" ",
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+						href: "https://maxi.grok.me",
+						target: "_blank",
+						rel: "noopener noreferrer",
+						children: "maxi.grok.me"
+					})
+				]
+			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Scripts, {})
 		] })]
 	})
 });
-var $$splitComponentImporter$3 = () => import("./routes-DgT4f2yI.mjs");
+var $$splitComponentImporter$3 = () => import("./routes-BI4gU5bm.mjs");
 var Route$4 = createFileRoute("/")({
 	validateSearch: (search) => ({
 		room: typeof search.room === "string" ? search.room.toUpperCase().slice(0, 4) : "",
@@ -411,11 +437,12 @@ var Route$4 = createFileRoute("/")({
 	})] },
 	component: lazyRouteComponent($$splitComponentImporter$3, "component")
 });
-var $$splitComponentImporter$2 = () => import("./credits-BjLHlEfH.mjs");
+var $$splitComponentImporter$2 = () => import("./credits-CVANFqor.mjs");
 var Route$3 = createFileRoute("/credits")({ component: lazyRouteComponent($$splitComponentImporter$2, "component") });
-var $$splitComponentImporter$1 = () => import("./privacy-YjHxK1Pc.mjs");
+var $$splitComponentImporter$1 = () => import("./privacy-BFROSqLL.mjs");
 var Route$2 = createFileRoute("/privacy")({ component: lazyRouteComponent($$splitComponentImporter$1, "component") });
 var _0002_conjure_default = "-- Shared cauldrons. Rows are unowned: anyone with the room code can play.\n-- No emails, no raw audio, no camera frames.\n\ncreate table if not exists conjure_rooms (\n  code text primary key,\n  host_id text not null,\n  vibe text not null,\n  locked boolean not null default false,\n  consent text,\n  updated_at timestamptz not null default now()\n);\n\ncreate table if not exists conjure_members (\n  code text not null references conjure_rooms (code) on delete cascade,\n  device_id text not null,\n  name text not null,\n  role text not null,\n  seat text not null,\n  color text not null,\n  sensors text not null default '{}',\n  last_seen timestamptz not null default now(),\n  primary key (code, device_id)\n);\n\ncreate table if not exists conjure_drops (\n  id text primary key,\n  code text not null references conjure_rooms (code) on delete cascade,\n  ingredient text not null,\n  by_device text not null,\n  at_ms bigint not null,\n  neutral boolean not null default false\n);\n\ncreate index if not exists conjure_drops_code on conjure_drops (code, at_ms);\n\ncreate table if not exists conjure_room_creates (\n  id bigserial primary key,\n  device_id text not null,\n  created_at timestamptz not null default now()\n);\n\ncreate table if not exists conjure_reports (\n  id bigserial primary key,\n  creation_id text not null,\n  reason text not null,\n  created_at timestamptz not null default now()\n);\n\ncreate table if not exists conjure_events (\n  id bigserial primary key,\n  name text not null,\n  created_at timestamptz not null default now()\n);\n\ncreate table if not exists conjure_mints (\n  id bigserial primary key,\n  device_id text not null,\n  creation_id text not null,\n  created_at timestamptz not null default now(),\n  unique (device_id, creation_id)\n);\n";
+var _0003_board_default = "-- Opt-in scoreboard. Handle, score, and streak only. No wallet, no email.\n\ncreate table if not exists conjure_board (\n  device_id text primary key,\n  handle text not null,\n  xp integer not null,\n  streak integer not null,\n  level text not null,\n  updated_at timestamptz not null default now()\n);\n";
 /**
 * Migration bookkeeping shared by the two appliers — `scripts/migrate.mjs`
 * (deploy, `readdir`) and `src/lib/db.ts` (PGLite preview, `import.meta.glob`).
@@ -533,7 +560,10 @@ async function createPgliteSql() {
 	});
 	const pg = await globalRef.__pgliteInstance__;
 	const migrate = async () => {
-		const migrations = /* #__PURE__ */ Object.assign({ "/migrations/0002_conjure.sql": _0002_conjure_default });
+		const migrations = /* #__PURE__ */ Object.assign({
+			"/migrations/0002_conjure.sql": _0002_conjure_default,
+			"/migrations/0003_board.sql": _0003_board_default
+		});
 		const done = (await pg.query("select name from _migrations")).rows.map((r) => r.name);
 		for (const { name, path } of pendingMigrations(Object.keys(migrations), done)) await pg.transaction(async (tx) => {
 			await tx.exec(migrations[path]);
@@ -624,6 +654,226 @@ function makeRoomCode(random = Math.random) {
 	let code = "";
 	for (let i = 0; i < 4; i += 1) code += ALPHABET[Math.floor(random() * 32)];
 	return code;
+}
+var LEVELS = [
+	{
+		id: "spark",
+		xp: 0
+	},
+	{
+		id: "stir",
+		xp: 24
+	},
+	{
+		id: "circle",
+		xp: 70
+	},
+	{
+		id: "keep",
+		xp: 120
+	},
+	{
+		id: "master",
+		xp: 180
+	}
+];
+var ACTIONS = {
+	start: 8,
+	drop: 6,
+	sensor: 18,
+	gather: 22,
+	capture: 36,
+	share: 20,
+	remix: 16,
+	recipe: 14,
+	mint: 40,
+	fling: 4
+};
+var DAILY_CAP = {
+	start: 1,
+	drop: 12,
+	sensor: 3,
+	fling: 6,
+	share: 4
+};
+var BADGE_FOR = {
+	start: "spark",
+	drop: "drop",
+	sensor: "sensor",
+	gather: "circle",
+	capture: "keep",
+	share: "share",
+	fling: "fling",
+	mint: "mint"
+};
+function emptyProgress() {
+	return {
+		xp: 0,
+		level: "spark",
+		streak: 0,
+		lastDay: "",
+		badges: [],
+		day: "",
+		dayCounts: {}
+	};
+}
+function localDay(now) {
+	return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+function levelFor(xp) {
+	let id = "spark";
+	for (const level of LEVELS) if (xp >= level.xp) id = level.id;
+	return id;
+}
+function xpToNext(xp) {
+	const current = levelFor(xp);
+	const index = LEVELS.findIndex((level) => level.id === current);
+	const upcoming = LEVELS[index + 1];
+	if (!upcoming) return {
+		next: null,
+		need: 0,
+		span: 1,
+		into: 1
+	};
+	const floor = LEVELS[index].xp;
+	return {
+		next: upcoming.id,
+		need: upcoming.xp - xp,
+		span: upcoming.xp - floor,
+		into: xp - floor
+	};
+}
+function walletUnlocked(progress) {
+	return LEVELS.findIndex((level) => level.id === progress.level) >= 3 || progress.badges.includes("mint");
+}
+function nextStepId(progress) {
+	if (!progress.badges.includes("drop")) return "drop";
+	if (!progress.badges.includes("sensor")) return "sensor";
+	if (!progress.badges.includes("keep")) return "capture";
+	if (!progress.badges.includes("circle")) return "gather";
+	if (!progress.badges.includes("share")) return "share";
+	if (!progress.badges.includes("fling")) return "fling";
+	if (progress.level !== "master") return "master";
+	if (!progress.badges.includes("mint")) return "wallet";
+	return "board";
+}
+function award(progress, action, now = /* @__PURE__ */ new Date()) {
+	const day = localDay(now);
+	let streak = progress.streak;
+	let dayCounts = progress.day === day ? { ...progress.dayCounts } : {};
+	if (progress.lastDay !== day) {
+		const yesterday = localDay(/* @__PURE__ */ new Date(now.getTime() - 864e5));
+		streak = progress.lastDay === yesterday ? Math.max(1, progress.streak) + 1 : 1;
+		dayCounts = {};
+	}
+	const cap = DAILY_CAP[action];
+	const used = dayCounts[action] ?? 0;
+	const gained = cap != null && used >= cap ? 0 : ACTIONS[action];
+	if (gained > 0) dayCounts[action] = used + 1;
+	const xp = progress.xp + gained;
+	const level = levelFor(xp);
+	const badges = new Set(progress.badges);
+	const badge = BADGE_FOR[action];
+	if (badge && gained > 0) badges.add(badge);
+	if (streak >= 3) badges.add("streak");
+	if (level === "master") badges.add("master");
+	return {
+		progress: {
+			xp,
+			level,
+			streak,
+			lastDay: day,
+			badges: [...badges],
+			day,
+			dayCounts
+		},
+		gained,
+		leveledUp: level !== progress.level && gained > 0
+	};
+}
+var PROGRESS_KEY = "conjure.progress.v1";
+function loadProgress() {
+	if (typeof window === "undefined") return emptyProgress();
+	try {
+		const raw = localStorage.getItem(PROGRESS_KEY);
+		if (!raw) return emptyProgress();
+		const parsed = JSON.parse(raw);
+		return {
+			...emptyProgress(),
+			...parsed,
+			level: levelFor(parsed.xp ?? 0),
+			badges: Array.isArray(parsed.badges) ? parsed.badges.filter((item) => typeof item === "string") : [],
+			dayCounts: parsed.dayCounts && typeof parsed.dayCounts === "object" ? parsed.dayCounts : {}
+		};
+	} catch {
+		return emptyProgress();
+	}
+}
+function saveProgress(progress) {
+	if (typeof window === "undefined") return;
+	localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+}
+var TIPS_KEY = "conjure.tips.v1";
+var TIP_ORDER = [
+	"fling",
+	"capture",
+	"gather",
+	"share",
+	"master",
+	"wallet",
+	"board"
+];
+function loadDismissedTips() {
+	if (typeof window === "undefined") return [];
+	try {
+		const raw = JSON.parse(localStorage.getItem(TIPS_KEY) || "[]");
+		if (!Array.isArray(raw)) return [];
+		return raw.filter((item) => TIP_ORDER.includes(item));
+	} catch {
+		return [];
+	}
+}
+function dismissTip(id) {
+	const next = [.../* @__PURE__ */ new Set([...loadDismissedTips(), id])];
+	localStorage.setItem(TIPS_KEY, JSON.stringify(next));
+	return next;
+}
+function currentTip(dismissed, gates) {
+	for (const id of TIP_ORDER) if (gates[id] && !dismissed.includes(id)) return id;
+	return null;
+}
+var BOARD_KEY = "conjure.board.v1";
+function loadBoardPrefs() {
+	if (typeof window === "undefined") return {
+		optIn: false,
+		handle: "",
+		hidden: false
+	};
+	try {
+		const parsed = JSON.parse(localStorage.getItem(BOARD_KEY) || "{}");
+		return {
+			optIn: Boolean(parsed.optIn),
+			handle: typeof parsed.handle === "string" ? parsed.handle : "",
+			hidden: Boolean(parsed.hidden)
+		};
+	} catch {
+		return {
+			optIn: false,
+			handle: "",
+			hidden: false
+		};
+	}
+}
+function saveBoardPrefs(prefs) {
+	if (typeof window === "undefined") return;
+	localStorage.setItem(BOARD_KEY, JSON.stringify(prefs));
+}
+function cleanHandle(raw) {
+	const text = raw.replace(/[\u0000-\u001f]/g, "").replace(/\s+/g, " ").trim().slice(0, 16);
+	if (!text) return "";
+	if (text.includes("@")) return "";
+	if (/^0x[a-fA-F0-9]{6,}$/.test(text)) return "";
+	return text;
 }
 var DEVICE = string().regex(/^d_[a-zA-Z0-9]{8,32}$/);
 var CODE = string().regex(/^[A-HJ-NP-Z2-9]{4}$/);
@@ -816,6 +1066,9 @@ async function handleConjure(request) {
 			case "report": return report(sql, body);
 			case "event": return event(sql, body);
 			case "mint-touch": return mintTouch(sql, body);
+			case "board-list": return listBoard(sql);
+			case "board-publish": return publishBoard(sql, body);
+			case "board-hide": return hideBoard(sql, body);
 			default: return json({ error: "Unknown request." }, 400);
 		}
 	} catch (error) {
@@ -1086,12 +1339,57 @@ async function mintTouch(sql, body) {
 		used
 	});
 }
+var LEVEL = _enum([
+	"spark",
+	"stir",
+	"circle",
+	"keep",
+	"master"
+]);
+async function listBoard(sql) {
+	return json({ rows: (await sql.query(`select handle, xp, streak, level from conjure_board order by xp desc, updated_at asc limit 20`)).map((row) => ({
+		handle: row.handle,
+		xp: Number(row.xp) || 0,
+		streak: Number(row.streak) || 0,
+		level: row.level
+	})) });
+}
+async function publishBoard(sql, body) {
+	const parsed = object({
+		device: DEVICE,
+		handle: string().max(32),
+		xp: number().int().min(0).max(1e5),
+		streak: number().int().min(0).max(9999),
+		level: LEVEL
+	}).safeParse(body);
+	if (!parsed.success) return json({ error: "Could not post a score." }, 400);
+	const handle = cleanHandle(parsed.data.handle);
+	if (!handle) return json({ error: "Pick a handle. No email or wallet address." }, 400);
+	await sql.query(`insert into conjure_board (device_id, handle, xp, streak, level)
+     values ($1, $2, $3, $4, $5)
+     on conflict (device_id) do update
+       set handle = excluded.handle, xp = excluded.xp, streak = excluded.streak,
+           level = excluded.level, updated_at = now()`, [
+		parsed.data.device,
+		handle,
+		parsed.data.xp,
+		parsed.data.streak,
+		parsed.data.level
+	]);
+	return listBoard(sql);
+}
+async function hideBoard(sql, body) {
+	const parsed = object({ device: DEVICE }).safeParse(body);
+	if (!parsed.success) return json({ error: "Could not hide the score." }, 400);
+	await sql.query(`delete from conjure_board where device_id = $1`, [parsed.data.device]);
+	return listBoard(sql);
+}
 var handle = ({ request }) => handleConjure(request);
 var Route$1 = createFileRoute("/api/conjure")({ server: { handlers: {
 	GET: handle,
 	POST: handle
 } } });
-var $$splitComponentImporter = () => import("./c._id-CX-f01Yx.mjs");
+var $$splitComponentImporter = () => import("./c._id-CM71QveQ.mjs");
 var Route = createFileRoute("/c/$id")({
 	validateSearch: (search) => ({ d: typeof search.d === "string" ? search.d : "" }),
 	component: lazyRouteComponent($$splitComponentImporter, "component")
@@ -1133,4 +1431,4 @@ function getRouter() {
 	});
 }
 //#endregion
-export { Route$4 as a, resolveVotes as i, Route as n, cleanName as r, router_exports as t };
+export { cleanName as _, cleanHandle as a, emptyProgress as c, loadProgress as d, nextStepId as f, xpToNext as g, walletUnlocked as h, award as i, loadBoardPrefs as l, saveProgress as m, Route as n, currentTip as o, saveBoardPrefs as p, LEVELS as r, dismissTip as s, router_exports as t, loadDismissedTips as u, resolveVotes as v, Route$4 as y };

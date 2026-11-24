@@ -112,5 +112,80 @@
   "empty": "The cauldron is waiting.",
   "replay": "Replaying",
   "notFound": "This brew is not on this device.",
-  "who": "Who is here"
+  "who": "Who is here",
+  "next": {
+    "label": "Next",
+    "drop": "Drop an ingredient.",
+    "sensor": "Open a sensor and stir.",
+    "capture": "Capture a 6 second loop.",
+    "gather": "Open a circle.",
+    "share": "Share the replay link.",
+    "fling": "Drag the brew and let go.",
+    "master": "Keep brewing to reach Master.",
+    "wallet": "Open Wallet and connect on testnet.",
+    "board": "The board is opt-in. Hide it any time."
+  },
+  "tip": {
+    "fling": "The brew is moving. Drag it, then let go.",
+    "capture": "Tap Capture to keep a still, a loop, and a recipe.",
+    "gather": "Tap Gather. Friends join with the code.",
+    "share": "Share copies a link that replays this brew.",
+    "master": "Master is on. Open Tools for stir, hue, swirl, bloom, and freeze.",
+    "wallet": "Wallet lists testnet mints. You sign each transfer.",
+    "board": "The board stores a handle and a score. Hide removes yours."
+  },
+  "level": {
+    "spark": "Spark",
+    "stir": "Stir",
+    "circle": "Circle",
+    "keep": "Keep",
+    "master": "Master",
+    "max": "Master is the top."
+  },
+  "levelUp": "Level up",
+  "streak": "Streak",
+  "badges": { "empty": "Badges show up as you brew." },
+  "badge": {
+    "spark": "Opened",
+    "drop": "First drop",
+    "sensor": "Sensor",
+    "circle": "Circle",
+    "keep": "Capture",
+    "share": "Shared",
+    "streak": "Three-day streak",
+    "fling": "Fling",
+    "mint": "Mint",
+    "master": "Master"
+  },
+  "tools": {
+    "title": "Tools",
+    "body": "Full device resolution, within what this GPU can draw.",
+    "stir": "Stir",
+    "hue": "Hue",
+    "swirl": "Swirl",
+    "bloom": "Bloom",
+    "freeze": "Freeze",
+    "thaw": "Thaw"
+  },
+  "wallet": {
+    "open": "Wallet",
+    "mints": "Mints",
+    "empty": "No testnet mint on this device yet.",
+    "token": "Token id",
+    "to": "Send to",
+    "transfer": "Transfer",
+    "use": "Use",
+    "sent": "Transfer submitted.",
+    "fail": "The wallet did not send it.",
+    "wrongChain": "Switch to Robinhood Chain testnet."
+  },
+  "board": {
+    "open": "Board",
+    "body": "Opt in with a pseudonym or an emoji. No name, email, or wallet is stored. Hide deletes your row.",
+    "handle": "Handle",
+    "need": "Pick a handle first. An emoji is enough.",
+    "join": "Show me on the board",
+    "hide": "Hide me and delete my row",
+    "empty": "No one is on the board yet."
+  }
 }

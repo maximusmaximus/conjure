@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getSql, type Sql } from "@/lib/db";
 import { cleanName, makeRoomCode, roomCodeOk, withinDailyCap } from "./consent";
+import { cleanHandle } from "./progress";
 import type { Vibe, IngredientId, Drop } from "./brew";
 import type { ConsentView, Member, Seat } from "./store";
 
@@ -244,6 +245,12 @@ export async function handleConjure(request: Request): Promise<Response> {
         return event(sql, body);
       case "mint-touch":
         return mintTouch(sql, body);
+      case "board-list":
+        return listBoard(sql);
+      case "board-publish":
+        return publishBoard(sql, body);
+      case "board-hide":
+        return hideBoard(sql, body);
       default:
         return json({ error: "Unknown request." }, 400);
     }
@@ -550,4 +557,51 @@ async function mintTouch(sql: Sql, body: unknown): Promise<Response> {
     [parsed.data.device, parsed.data.creationId],
   );
   return json({ ok: true, used });
+}
+
+const LEVEL = z.enum(["spark", "stir", "circle", "keep", "master"]);
+
+async function listBoard(sql: Sql): Promise<Response> {
+  const rows = await sql.query<{ handle: string; xp: number; streak: number; level: string }>(
+    `select handle, xp, streak, level from conjure_board order by xp desc, updated_at asc limit 20`,
+  );
+  return json({
+    rows: rows.map((row) => ({
+      handle: row.handle,
+      xp: Number(row.xp) || 0,
+      streak: Number(row.streak) || 0,
+      level: row.level,
+    })),
+  });
+}
+
+async function publishBoard(sql: Sql, body: unknown): Promise<Response> {
+  const parsed = z
+    .object({
+      device: DEVICE,
+      handle: z.string().max(32),
+      xp: z.number().int().min(0).max(100000),
+      streak: z.number().int().min(0).max(9999),
+      level: LEVEL,
+    })
+    .safeParse(body);
+  if (!parsed.success) return json({ error: "Could not post a score." }, 400);
+  const handle = cleanHandle(parsed.data.handle);
+  if (!handle) return json({ error: "Pick a handle. No email or wallet address." }, 400);
+  await sql.query(
+    `insert into conjure_board (device_id, handle, xp, streak, level)
+     values ($1, $2, $3, $4, $5)
+     on conflict (device_id) do update
+       set handle = excluded.handle, xp = excluded.xp, streak = excluded.streak,
+           level = excluded.level, updated_at = now()`,
+    [parsed.data.device, handle, parsed.data.xp, parsed.data.streak, parsed.data.level],
+  );
+  return listBoard(sql);
+}
+
+async function hideBoard(sql: Sql, body: unknown): Promise<Response> {
+  const parsed = z.object({ device: DEVICE }).safeParse(body);
+  if (!parsed.success) return json({ error: "Could not hide the score." }, 400);
+  await sql.query(`delete from conjure_board where device_id = $1`, [parsed.data.device]);
+  return listBoard(sql);
 }

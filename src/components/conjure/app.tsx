@@ -1,3 +1,4 @@
+import { BoardSheet, LevelSheet, MasterSheet, NextStep, TipCard, WalletSheet, type BoardRow } from "@/components/conjure/layers";
 import { Link } from "@tanstack/react-router";
 import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { burstSound, isMuted, pluck, setMuted, unlockAudio } from "@/conjure/audio";
@@ -17,10 +18,29 @@ import {
 } from "@/conjure/brew";
 import { CHAIN, connectWallet, mintWithWallet, walletAvailable, type WalletState } from "@/conjure/chain";
 import { resolveVotes } from "@/conjure/consent";
+import { decayFling, flingVel, haptic, isFling, pointerDown, pointerMove, pointerUp, sceneMoving } from "@/conjure/fling";
 import { FlatBrew } from "@/conjure/flat";
 import { XeIcon } from "@/conjure/icons";
-import { downloadGlb, liveSensor, remoteSensor, startAR, takeStill } from "@/conjure/live";
+import { downloadGlb, liveSensor, masterMix, remoteSensor, startAR, takeStill } from "@/conjure/live";
 import { probeQuality, type Quality } from "@/conjure/quality";
+import {
+  award,
+  cleanHandle,
+  currentTip,
+  dismissTip,
+  emptyProgress,
+  loadBoardPrefs,
+  loadDismissedTips,
+  loadProgress,
+  nextStepId,
+  saveBoardPrefs,
+  saveProgress,
+  walletUnlocked,
+  type Action,
+  type BoardPrefs,
+  type Progress,
+  type TipId,
+} from "@/conjure/progress";
 import { useSensors, type SensorKind } from "@/conjure/sensors";
 import {
   creationById,
@@ -34,6 +54,7 @@ import {
   newId,
   saveCreation,
   saveFlags,
+  saveMint,
   saveName,
   saveOptIn,
   trackLocal,
@@ -109,6 +130,10 @@ export function ConjureApp({
   const [liveMsg, setLiveMsg] = useState("");
   const [optIn, setOptIn] = useState(false);
   const [graphics, setGraphics] = useState<"3d" | "flat">("3d");
+  const [progress, setProgress] = useState<Progress>(emptyProgress);
+  const [dismissed, setDismissed] = useState<TipId[]>([]);
+  const [boardPrefs, setBoardPrefs] = useState<BoardPrefs>({ optIn: false, handle: "", hidden: false });
+  const [boardRows, setBoardRows] = useState<BoardRow[]>([]);
   const deviceRef = useRef("d_pending00");
   const loops = useRef(new Map<string, Blob>());
   const dragging = useRef(false);
@@ -131,6 +156,9 @@ export function ConjureApp({
     setFlags(loadFlags());
     setOptIn(loadOptIn());
     setGallery(loadCreations());
+    setProgress(loadProgress());
+    setDismissed(loadDismissedTips());
+    setBoardPrefs(loadBoardPrefs());
     const remixRaw = sessionStorage.getItem("conjure.remix");
     if (remixRaw) {
       sessionStorage.removeItem("conjure.remix");
@@ -151,16 +179,80 @@ export function ConjureApp({
     const applyReduced = () => setReduced(reducedQuery.matches);
     applyReduced();
     reducedQuery.addEventListener("change", applyReduced);
-    void probeQuality().then((next) => {
-      setQuality(next);
-      if (!next.webgl2) setGraphics("flat");
-    });
     const nav = navigator as Navigator & { xr?: { isSessionSupported: (mode: string) => Promise<boolean> } };
     if (nav.xr) {
       void nav.xr.isSessionSupported("immersive-ar").then(setXr).catch(() => setXr(false));
     }
     return () => reducedQuery.removeEventListener("change", applyReduced);
   }, []);
+
+  useEffect(() => {
+    let stop = false;
+    const run = () => {
+      void probeQuality({ master: progress.level === "master" }).then((next) => {
+        if (stop) return;
+        setQuality(next);
+        if (!next.webgl2) setGraphics("flat");
+      });
+    };
+    run();
+    window.addEventListener("resize", run);
+    return () => {
+      stop = true;
+      window.removeEventListener("resize", run);
+    };
+  }, [progress.level]);
+
+  useEffect(() => {
+    if (!started) return;
+    let frame = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(0.1, (now - last) / 1000);
+      last = now;
+      if (!reduced && !masterMix.freeze) {
+        decayFling(dt);
+        liveSensor.tiltX = Math.max(-1, Math.min(1, liveSensor.tiltX + flingVel.x * dt * 8));
+        liveSensor.tiltY = Math.max(-1, Math.min(1, liveSensor.tiltY + flingVel.y * dt * 8));
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [started, reduced]);
+
+  function grant(action: Action) {
+    setProgress((current) => {
+      const result = award(current, action);
+      saveProgress(result.progress);
+      if (result.leveledUp) {
+        setNotice(`${t("levelUp")}: ${t(`level.${result.progress.level}`)}`);
+      }
+      return result.progress;
+    });
+  }
+
+  useEffect(() => {
+    if (!boardPrefs.optIn) return;
+    const handle = cleanHandle(boardPrefs.handle);
+    if (!handle) return;
+    const timer = window.setTimeout(() => {
+      void roomCall({
+        op: "board-publish",
+        device: deviceRef.current,
+        handle,
+        xp: progress.xp,
+        streak: progress.streak,
+        level: progress.level,
+      })
+        .then((data) => {
+          const rows = (data as { rows?: BoardRow[] }).rows;
+          if (rows) setBoardRows(rows);
+        })
+        .catch(() => undefined);
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [boardPrefs.optIn, boardPrefs.handle, progress.xp, progress.streak, progress.level]);
 
   useEffect(() => {
     if (!roomCode) return;
@@ -295,6 +387,7 @@ export function ConjureApp({
     pluck(ing.hue, ing.energy);
     const made = useBrew.getState().addDrop(id, deviceRef.current);
     patchFlags({ usedIngredient: true, hintDrop: false });
+    grant("drop");
     say(`${ing.label} dropped in.`);
     if (roomCode) {
       try {
@@ -423,6 +516,7 @@ export function ConjureApp({
     setGallery(loadCreations());
     if (chunks.length) loops.current.set(creation.id, new Blob(chunks, { type: "video/webm" }));
     trackLocal("capture");
+    grant("capture");
     void roomCall({ op: "event", name: "capture" }).catch(() => undefined);
     setReview(creation);
     setSheet("review");
@@ -447,6 +541,7 @@ export function ConjureApp({
       if ("code" in snap && snap.code) {
         useBrew.getState().applyRoom(snap);
         patchFlags({ usedGroup: true });
+        grant("gather");
         setSheet("gather");
         say(`Circle ${snap.code} is open.`);
       }
@@ -476,6 +571,7 @@ export function ConjureApp({
       if ("members" in snap) {
         useBrew.getState().applyRoom(snap);
         patchFlags({ usedGroup: true, passedSensors: true });
+        grant("gather");
         setSheet("gather");
         say(asWatch ? t("watching") : `Joined ${code}.`);
       }
@@ -488,6 +584,7 @@ export function ConjureApp({
     const encoded = encodeCreation(creation);
     const url = `${window.location.origin}/c/${creation.id}?d=${encoded}`;
     trackLocal("share");
+    grant("share");
     void roomCall({ op: "event", name: "share" }).catch(() => undefined);
     const payload: ShareData = { title: creation.title, text: "Remix this brew.", url };
     try {
@@ -506,6 +603,7 @@ export function ConjureApp({
     sessionStorage.setItem("conjure.remix", JSON.stringify(creation));
     sessionStorage.setItem("conjure.lineage", JSON.stringify({ id: creation.id, title: creation.title }));
     trackLocal("remix");
+    grant("remix");
     void roomCall({ op: "event", name: "remix" }).catch(() => undefined);
     window.location.assign("/");
   }
@@ -524,8 +622,19 @@ export function ConjureApp({
     saveCreation(creation);
     setGallery(loadCreations());
     patchFlags({ savedRecipe: true });
+    grant("recipe");
     setNotice(t("saved"));
   }
+
+  useEffect(() => {
+    if (sheet !== "board") return;
+    void roomCall({ op: "board-list" })
+      .then((data) => {
+        const rows = (data as { rows?: BoardRow[] }).rows;
+        if (rows) setBoardRows(rows);
+      })
+      .catch(() => undefined);
+  }, [sheet]);
 
   useEffect(() => {
     if (sheet !== "gather" || !roomCode) return;
@@ -551,16 +660,44 @@ export function ConjureApp({
       </div>
       <div
         className="stage"
-        onPointerDown={() => {
+        onPointerDown={(event) => {
+          if (sceneMoving({ started, reduced, frozen: masterMix.freeze })) {
+            event.currentTarget.setPointerCapture(event.pointerId);
+            pointerDown(event.pointerId, event.clientX, event.clientY);
+            haptic(8);
+            return;
+          }
           dragging.current = true;
         }}
-        onPointerUp={() => {
+        onPointerUp={(event) => {
+          if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+            const speed = pointerUp(event.pointerId);
+            if (isFling(speed)) {
+              haptic([12, 28, 18]);
+              grant("fling");
+            }
+            return;
+          }
+          dragging.current = false;
+        }}
+        onPointerCancel={(event) => {
+          pointerUp(event.pointerId);
           dragging.current = false;
         }}
         onPointerLeave={() => {
           dragging.current = false;
         }}
         onPointerMove={(event) => {
+          if (
+            sceneMoving({ started, reduced, frozen: masterMix.freeze }) &&
+            event.currentTarget.hasPointerCapture?.(event.pointerId)
+          ) {
+            const delta = pointerMove(event.pointerId, event.clientX, event.clientY);
+            if (!delta) return;
+            liveSensor.tiltX = Math.max(-1, Math.min(1, liveSensor.tiltX + delta.dx / 160));
+            liveSensor.tiltY = Math.max(-1, Math.min(1, liveSensor.tiltY + delta.dy / 160));
+            return;
+          }
           if (!dragging.current || !started) return;
           liveSensor.tiltX = Math.max(-1, Math.min(1, liveSensor.tiltX + event.movementX / 180));
           liveSensor.tiltY = Math.max(-1, Math.min(1, liveSensor.tiltY + event.movementY / 180));
@@ -583,6 +720,12 @@ export function ConjureApp({
           <span>{t("app.title")}</span>
         </Link>
         <div className="top-actions">
+          <button type="button" className="chip" onClick={() => setSheet("level")}>
+            <XeIcon emoji="⭐" />
+            <span>
+              {t(`level.${progress.level}`)} · {progress.xp}
+            </span>
+          </button>
           {started && !replay && (
             <button
               type="button"
@@ -618,6 +761,45 @@ export function ConjureApp({
           </Link>
         </div>
       </header>
+
+      {!replay && <NextStep id={nextStepId(progress)} />}
+      {!replay &&
+        currentTip(dismissed, {
+          fling: started && !reduced && !masterMix.freeze,
+          capture: flags.usedIngredient,
+          gather: flags.passedSensors,
+          share: gallery.length > 0,
+          master: progress.level === "master",
+          wallet: walletUnlocked(progress),
+          board: progress.xp >= 40 && !boardPrefs.hidden,
+        }) && (
+          <TipCard
+            id={
+              currentTip(dismissed, {
+                fling: started && !reduced && !masterMix.freeze,
+                capture: flags.usedIngredient,
+                gather: flags.passedSensors,
+                share: gallery.length > 0,
+                master: progress.level === "master",
+                wallet: walletUnlocked(progress),
+                board: progress.xp >= 40 && !boardPrefs.hidden,
+              }) as TipId
+            }
+            onDismiss={() => {
+              const id = currentTip(dismissed, {
+                fling: started && !reduced && !masterMix.freeze,
+                capture: flags.usedIngredient,
+                gather: flags.passedSensors,
+                share: gallery.length > 0,
+                master: progress.level === "master",
+                wallet: walletUnlocked(progress),
+                board: progress.xp >= 40 && !boardPrefs.hidden,
+              });
+              if (!id) return;
+              setDismissed(dismissTip(id));
+            }}
+          />
+        )}
 
       {notice && (
         <p className="notice" role="status">
@@ -681,6 +863,7 @@ export function ConjureApp({
               onClick={() => {
                 unlockAudio();
                 useBrew.getState().start();
+                grant("start");
                 say("The cauldron is open.");
               }}
             >
@@ -898,6 +1081,7 @@ export function ConjureApp({
           go={t("mic.go")}
           onGo={() => {
             setKind("mic");
+            grant("sensor");
             setSheet(null);
             patchFlags({ passedSensors: true, hintSensor: false });
           }}
@@ -912,6 +1096,7 @@ export function ConjureApp({
           go={t("cam.go")}
           onGo={() => {
             setKind("camera");
+            grant("sensor");
             setSheet(null);
             patchFlags({ passedSensors: true, hintSensor: false });
           }}
@@ -926,6 +1111,7 @@ export function ConjureApp({
           go={t("motion.go")}
           onGo={() => {
             setKind("motion");
+            grant("sensor");
             setSheet(null);
             patchFlags({ passedSensors: true, hintSensor: false });
           }}
@@ -1232,6 +1418,8 @@ export function ConjureApp({
                     .then(() => mintWithWallet(wallet.address, `${window.location.origin}/c/${review.id}`))
                     .then((hash) => {
                       trackLocal("mint");
+                      grant("mint");
+                      saveMint({ hash, uri: `${window.location.origin}/c/${review.id}`, at: Date.now() });
                       setNotice(`${t("mint.sent")} ${hash.slice(0, 10)}`);
                     })
                     .catch((error: unknown) => setNotice(error instanceof Error ? error.message : t("mint.cap")));
@@ -1242,6 +1430,55 @@ export function ConjureApp({
             )}
           </div>
         </section>
+      )}
+
+      {sheet === "level" && (
+        <LevelSheet
+          progress={progress}
+          onClose={() => setSheet(null)}
+          onWallet={() => setSheet("wallet")}
+          onBoard={() => setSheet("board")}
+          onTools={() => setSheet("tools")}
+        />
+      )}
+      {sheet === "tools" && <MasterSheet onClose={() => setSheet(null)} />}
+      {sheet === "wallet" && (
+        <WalletSheet
+          wallet={wallet}
+          onWallet={setWallet}
+          onClose={() => setSheet(null)}
+          onNotice={setNotice}
+        />
+      )}
+      {sheet === "board" && (
+        <BoardSheet
+          rows={boardRows}
+          handle={boardPrefs.handle}
+          optIn={boardPrefs.optIn && !boardPrefs.hidden}
+          onHandle={(value) => {
+            const next = { ...boardPrefs, handle: value };
+            setBoardPrefs(next);
+            saveBoardPrefs(next);
+          }}
+          onOptIn={() => {
+            const handle = cleanHandle(boardPrefs.handle);
+            if (!handle) {
+              setNotice(t("board.need"));
+              return;
+            }
+            const next = { optIn: true, handle, hidden: false };
+            setBoardPrefs(next);
+            saveBoardPrefs(next);
+          }}
+          onHide={() => {
+            const next = { ...boardPrefs, optIn: false, hidden: true };
+            setBoardPrefs(next);
+            saveBoardPrefs(next);
+            setBoardRows([]);
+            void roomCall({ op: "board-hide", device: deviceRef.current }).catch(() => undefined);
+          }}
+          onClose={() => setSheet(null)}
+        />
       )}
 
       {sheet === "report" && replay && (

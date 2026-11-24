@@ -1,10 +1,12 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { N as require_jsx_runtime, P as require_react } from "../_libs/@react-three/fiber+[...].mjs";
 import { y as Link } from "../_libs/@tanstack/react-router+[...].mjs";
-import { i as resolveVotes, r as cleanName } from "./router-CoYPdMwM.mjs";
+import { _ as cleanName, a as cleanHandle, c as emptyProgress, d as loadProgress, f as nextStepId, g as xpToNext, h as walletUnlocked, i as award, l as loadBoardPrefs, m as saveProgress, o as currentTip, p as saveBoardPrefs, r as LEVELS, s as dismissTip, u as loadDismissedTips, v as resolveVotes } from "./router-Bb66oXw6.mjs";
 import { t as require_xeroemoji } from "../_libs/xeroemoji.mjs";
+import { Ht as parseAbiItem, n as getPublicClient, pn as erc721Abi, t as createConfig } from "../_libs/@wagmi/core+[...].mjs";
+import { i as defineChain, n as custom, r as createWalletClient, t as http } from "../_libs/viem.mjs";
 import { t as create } from "../_libs/zustand.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/app-BRHp-Cky.js
+//#region node_modules/.nitro/vite/services/ssr/assets/app-JLROx8KU.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var import_xeroemoji = require_xeroemoji();
@@ -272,71 +274,76 @@ function setExportGlb(fn) {
 function downloadGlb() {
 	return exportGlb ? exportGlb() : Promise.resolve(null);
 }
-var ctx = null;
-var muted = false;
-function unlockAudio() {
-	if (typeof window === "undefined") return;
-	try {
-		const AC = window.AudioContext || window.webkitAudioContext;
-		if (!AC) return;
-		ctx ??= new AC();
-		if (ctx.state === "suspended") ctx.resume();
-	} catch {
-		ctx = null;
+/** Master tools. Mutated in place, same as the sensors. */
+var masterMix = {
+	stir: .35,
+	hue: 0,
+	swirl: .45,
+	bloom: .55,
+	freeze: false
+};
+var pointers = /* @__PURE__ */ new Map();
+/** Latest fling velocity in pixels per millisecond. Decays after release. */
+var flingVel = {
+	x: 0,
+	y: 0
+};
+function sceneMoving(opts) {
+	return opts.started && !opts.reduced && !opts.frozen;
+}
+function pointerDown(id, x, y, now = 0) {
+	pointers.set(id, {
+		x,
+		y,
+		t: now || (typeof performance !== "undefined" ? performance.now() : 0)
+	});
+}
+function pointerMove(id, x, y, now = 0) {
+	const prev = pointers.get(id);
+	if (!prev) return null;
+	const t = now || (typeof performance !== "undefined" ? performance.now() : prev.t + 16);
+	const dx = x - prev.x;
+	const dy = y - prev.y;
+	const dt = Math.max(8, t - prev.t);
+	pointers.set(id, {
+		x,
+		y,
+		t
+	});
+	flingVel.x = dx / dt;
+	flingVel.y = dy / dt;
+	return {
+		dx,
+		dy
+	};
+}
+function pointerUp(id) {
+	pointers.delete(id);
+	const speed = Math.hypot(flingVel.x, flingVel.y);
+	if (pointers.size > 0) return speed;
+	if (speed < .12) {
+		flingVel.x = 0;
+		flingVel.y = 0;
+		return 0;
+	}
+	return speed;
+}
+function decayFling(dt) {
+	const keep = Math.exp(-dt * 2.6);
+	flingVel.x *= keep;
+	flingVel.y *= keep;
+	if (Math.hypot(flingVel.x, flingVel.y) < .008) {
+		flingVel.x = 0;
+		flingVel.y = 0;
 	}
 }
-function setMuted(next) {
-	muted = next;
+function isFling(speedPxPerMs) {
+	return speedPxPerMs >= .45;
 }
-function isMuted() {
-	return muted;
-}
-function pluck(hue, energy = .4) {
-	if (!ctx || muted) return;
-	const now = ctx.currentTime;
-	const osc = ctx.createOscillator();
-	const gain = ctx.createGain();
-	osc.type = energy > .8 ? "sawtooth" : "triangle";
-	osc.frequency.value = 160 + hue % 360 * 1.4;
-	gain.gain.setValueAtTime(1e-4, now);
-	gain.gain.exponentialRampToValueAtTime(.06, now + .02);
-	gain.gain.exponentialRampToValueAtTime(1e-4, now + .45);
-	osc.connect(gain);
-	gain.connect(ctx.destination);
-	osc.start(now);
-	osc.stop(now + .48);
-}
-function burstSound() {
-	if (!ctx || muted) return;
-	const now = ctx.currentTime;
-	const osc = ctx.createOscillator();
-	const gain = ctx.createGain();
-	osc.type = "sine";
-	osc.frequency.setValueAtTime(240, now);
-	osc.frequency.exponentialRampToValueAtTime(90, now + .3);
-	gain.gain.setValueAtTime(.07, now);
-	gain.gain.exponentialRampToValueAtTime(1e-4, now + .32);
-	osc.connect(gain);
-	gain.connect(ctx.destination);
-	osc.start(now);
-	osc.stop(now + .34);
-}
-var RoomError = class extends Error {};
-async function roomCall(body) {
-	const res = await fetch("/api/conjure", {
-		method: "POST",
-		headers: { "content-type": "application/json" },
-		body: JSON.stringify(body)
-	});
-	const data = await res.json();
-	if (!res.ok) throw new RoomError(data.error || "The circle did not answer.");
-	return data;
-}
-async function roomGet(code, deviceId) {
-	const res = await fetch(`/api/conjure?code=${encodeURIComponent(code)}&device=${encodeURIComponent(deviceId)}`);
-	const data = await res.json();
-	if (!res.ok) throw new RoomError(data.error || "That circle is gone.");
-	return data;
+function haptic(pattern) {
+	try {
+		if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") navigator.vibrate(pattern);
+	} catch {}
 }
 /** Robinhood Chain testnet only. No keys, no mainnet switch in this build. */
 var CHAIN = {
@@ -420,7 +427,7 @@ async function mintWithWallet(to, tokenUri) {
 	});
 }
 function encodeMint(to, tokenUri) {
-	const selector = "0x40c10f19";
+	const selector = "0xd0def521";
 	const addr = to.toLowerCase().replace(/^0x/, "").padStart(64, "0");
 	const offset = 64 .toString(16).padStart(64, "0");
 	const bytes = new TextEncoder().encode(tokenUri);
@@ -430,6 +437,887 @@ function encodeMint(to, tokenUri) {
 		hex += b.toString(16).padStart(2, "0");
 	});
 	return `${selector}${addr}${offset}${len}${hex.padEnd(Math.ceil(hex.length / 64) * 64, "0")}`;
+}
+var based = false;
+/** Self-hosted subset. Never hotlink the CDN at runtime. */
+function xeSrc(emoji) {
+	if (!based) {
+		(0, import_xeroemoji.setBase)("/xeroemoji/");
+		based = true;
+	}
+	return (0, import_xeroemoji.get)(emoji)?.svgUrl ?? "";
+}
+function XeIcon({ emoji, className }) {
+	const src = xeSrc(emoji);
+	if (!src) return null;
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+		src,
+		alt: "",
+		"aria-hidden": "true",
+		draggable: false,
+		className: className ? `xe ${className}` : "xe"
+	});
+}
+var KEY = "conjure.creations.v1";
+var FLAGS = "conjure.flags.v1";
+var DEVICE = "conjure.device";
+var NAME = "conjure.name";
+var OPT = "conjure.optIn";
+var defaultFlags = () => ({
+	usedIngredient: false,
+	passedSensors: false,
+	usedGroup: false,
+	savedRecipe: false,
+	hintDrop: true,
+	hintSensor: true,
+	hintKeys: true
+});
+function readJson(key, fallback) {
+	if (typeof window === "undefined") return fallback;
+	try {
+		const raw = localStorage.getItem(key);
+		if (!raw) return fallback;
+		return JSON.parse(raw);
+	} catch {
+		return fallback;
+	}
+}
+function deviceId() {
+	if (typeof window === "undefined") return "server";
+	let id = localStorage.getItem(DEVICE);
+	if (!id || !/^d_[a-zA-Z0-9]{8,32}$/.test(id)) {
+		id = `d_${typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "").slice(0, 16) : Math.random().toString(36).slice(2, 12)}`;
+		localStorage.setItem(DEVICE, id);
+	}
+	return id;
+}
+function loadName() {
+	return readJson(NAME, "");
+}
+function saveName(name) {
+	localStorage.setItem(NAME, JSON.stringify(name));
+}
+function loadOptIn() {
+	return readJson(OPT, false);
+}
+function saveOptIn(value) {
+	localStorage.setItem(OPT, JSON.stringify(value));
+}
+function loadFlags() {
+	return {
+		...defaultFlags(),
+		...readJson(FLAGS, {})
+	};
+}
+function saveFlags(flags) {
+	localStorage.setItem(FLAGS, JSON.stringify(flags));
+}
+function loadCreations() {
+	const list = readJson(KEY, []);
+	return Array.isArray(list) ? list : [];
+}
+function saveCreation(creation) {
+	const list = loadCreations().filter((item) => item.id !== creation.id);
+	list.unshift(creation);
+	localStorage.setItem(KEY, JSON.stringify(list.slice(0, 24)));
+}
+function creationById(id) {
+	return loadCreations().find((item) => item.id === id) ?? null;
+}
+function encodeCreation(creation) {
+	const copy = {
+		...creation,
+		still: void 0
+	};
+	const json = JSON.stringify(copy);
+	const bytes = new TextEncoder().encode(json);
+	let bin = "";
+	bytes.forEach((b) => {
+		bin += String.fromCharCode(b);
+	});
+	return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+function decodeCreation(payload) {
+	try {
+		const pad = payload.length % 4 === 0 ? "" : "=".repeat(4 - payload.length % 4);
+		const b64 = payload.replace(/-/g, "+").replace(/_/g, "/") + pad;
+		const bin = atob(b64);
+		const bytes = new Uint8Array(bin.length);
+		for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+		const parsed = JSON.parse(new TextDecoder().decode(bytes));
+		if (!parsed || typeof parsed.id !== "string" || !Array.isArray(parsed.drops)) return null;
+		return parsed;
+	} catch {
+		return null;
+	}
+}
+function newId() {
+	return Math.random().toString(36).slice(2, 10);
+}
+var EVENTS = "conjure.events.v1";
+function trackLocal(name) {
+	if (typeof window === "undefined") return;
+	const cur = readJson(EVENTS, {});
+	cur[name] = (cur[name] ?? 0) + 1;
+	localStorage.setItem(EVENTS, JSON.stringify(cur));
+}
+var MINTS = "conjure.mints.v1";
+function loadMints() {
+	const list = readJson(MINTS, []);
+	return Array.isArray(list) ? list : [];
+}
+function saveMint(note) {
+	const list = loadMints().filter((item) => item.hash !== note.hash);
+	list.unshift(note);
+	localStorage.setItem(MINTS, JSON.stringify(list.slice(0, 40)));
+}
+/** Robinhood Chain testnet only. This module has no mainnet chain. */
+var robinhoodTestnet = defineChain({
+	id: CHAIN.id,
+	name: CHAIN.name,
+	nativeCurrency: {
+		name: "Ether",
+		symbol: "ETH",
+		decimals: 18
+	},
+	rpcUrls: { default: { http: [CHAIN.rpc] } },
+	blockExplorers: { default: {
+		name: "Explorer",
+		url: CHAIN.explorer
+	} },
+	testnet: true
+});
+var wagmiConfig = createConfig({
+	chains: [robinhoodTestnet],
+	transports: { [robinhoodTestnet.id]: http(CHAIN.rpc) },
+	ssr: true
+});
+var transferEvent = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)");
+function asAddress(value) {
+	if (!/^0x[a-fA-F0-9]{40}$/.test(value)) throw new Error("That address is not valid.");
+	return value;
+}
+async function listOwnedTokens(owner) {
+	if (!CHAIN.contract) return [];
+	const client = getPublicClient(wagmiConfig);
+	const account = asAddress(owner);
+	const logs = await client.getLogs({
+		address: CHAIN.contract,
+		event: transferEvent,
+		fromBlock: 0n,
+		toBlock: "latest"
+	});
+	const holder = /* @__PURE__ */ new Map();
+	for (const log of logs) {
+		const id = log.args.tokenId?.toString();
+		if (!id || !log.args.to) continue;
+		holder.set(id, log.args.to);
+	}
+	return [...holder.entries()].filter(([, who]) => who.toLowerCase() === account.toLowerCase()).map(([id]) => ({ id })).sort((a, b) => Number(a.id) - Number(b.id));
+}
+async function transferToken(from, to, tokenId) {
+	if (!CHAIN.contract) throw new Error("No collection contract is configured.");
+	if (typeof window === "undefined") throw new Error("No wallet in this browser.");
+	const eth = window.ethereum;
+	if (!eth) throw new Error("No wallet in this browser.");
+	const fromAddr = asAddress(from);
+	const toAddr = asAddress(to);
+	if (!/^\d+$/.test(tokenId)) throw new Error("Token id must be a number.");
+	const wallet = createWalletClient({
+		account: fromAddr,
+		chain: robinhoodTestnet,
+		transport: custom(eth)
+	});
+	if (await wallet.getChainId() !== CHAIN.id) throw new Error("Switch the wallet to Robinhood Chain testnet.");
+	return wallet.writeContract({
+		address: CHAIN.contract,
+		abi: erc721Abi,
+		functionName: "transferFrom",
+		args: [
+			fromAddr,
+			toAddr,
+			BigInt(tokenId)
+		],
+		account: fromAddr,
+		chain: robinhoodTestnet
+	});
+}
+var en_default = {
+	app: { "title": "Conjure" },
+	start: "Start",
+	soundOn: "Sound on",
+	soundOff: "Sound off",
+	optIn: "Include me when I am signed in",
+	hint: {
+		"drop": "Tap an ingredient. It drops in.",
+		"sensor": "A sensor can stir the brew.",
+		"keys": "Keys 1–8 drop ingredients."
+	},
+	vibe: {
+		"label": "Vibe",
+		"calm": "Calm",
+		"chaotic": "Chaotic",
+		"spooky": "Spooky"
+	},
+	quiet: "Keep it quiet",
+	gather: "Gather",
+	capture: "Capture",
+	share: "Share",
+	remix: "Remix",
+	close: "Close",
+	back: "Back to the cauldron",
+	credits: "Credits",
+	privacy: "Privacy",
+	copy: "Copy link",
+	copied: "Link copied.",
+	watching: "You are watching.",
+	inPot: "in the pot",
+	hostOnly: "The host captures.",
+	full: "The circle is full.",
+	sensor: {
+		"mic": "Mic",
+		"camera": "Camera",
+		"motion": "Motion",
+		"sample": "Sample color",
+		"stop": "Tap to stop"
+	},
+	mic: {
+		"line1": "Your voice shapes the brew.",
+		"line2": "Only levels are shared, not audio.",
+		"go": "Use microphone"
+	},
+	cam: {
+		"line1": "Sample a color, or wave to stir.",
+		"line2": "The picture stays on this phone.",
+		"go": "Use camera"
+	},
+	motion: {
+		"line1": "Tilt to stir. Shake for a burst.",
+		"line2": "The phone may ask for motion.",
+		"go": "Use motion"
+	},
+	denied: "You can still tap ingredients.",
+	consent: {
+		"line1": "Include you in this capture?",
+		"line2": "No answer leaves you out.",
+		"in": "Include me",
+		"out": "Leave me out",
+		"wait": "The circle is choosing."
+	},
+	record: "Saving the loop",
+	review: {
+		"title": "Captured",
+		"still": "Save still",
+		"loop": "Save loop",
+		"recipe": "Save recipe",
+		"glb": "Save GLB",
+		"mint": "Mint"
+	},
+	mint: {
+		"title": "Mint on testnet",
+		"body": "You pay gas on Robinhood Chain testnet.",
+		"connect": "Connect wallet",
+		"noWallet": "No wallet in this browser.",
+		"noContract": "No collection contract is configured.",
+		"meta": "Download metadata",
+		"cap": "Daily mint cap reached.",
+		"sent": "Mint submitted."
+	},
+	room: {
+		"title": "One cauldron",
+		"host": "You host this circle.",
+		"code": "Code",
+		"join": "Join",
+		"watch": "Watch",
+		"leave": "Leave",
+		"lock": "Lock",
+		"unlock": "Unlock",
+		"kick": "Remove",
+		"handoff": "Make host",
+		"name": "Your name",
+		"open": "Open a circle",
+		"invite": "A cauldron invited you."
+	},
+	seat: {
+		"stirrer": "Stirrer",
+		"singer": "Singer",
+		"spark": "Spark",
+		"seer": "Seer"
+	},
+	form: { "label": "Form" },
+	deep: "Reorder the drops. Mute one to keep it neutral.",
+	up: "Earlier",
+	down: "Later",
+	mute: "Mute",
+	unmute: "Restore",
+	saveRecipe: "Save recipe",
+	saved: "Recipe saved.",
+	lineage: "Remixed from",
+	report: "Report",
+	reportSent: "Report sent.",
+	reason: {
+		"spam": "Spam",
+		"unsafe": "Unsafe",
+		"other": "Other"
+	},
+	ar: "Place in room",
+	tier: "Graphics",
+	empty: "The cauldron is waiting.",
+	replay: "Replaying",
+	notFound: "This brew is not on this device.",
+	who: "Who is here",
+	next: {
+		"label": "Next",
+		"drop": "Drop an ingredient.",
+		"sensor": "Open a sensor and stir.",
+		"capture": "Capture a 6 second loop.",
+		"gather": "Open a circle.",
+		"share": "Share the replay link.",
+		"fling": "Drag the brew and let go.",
+		"master": "Keep brewing to reach Master.",
+		"wallet": "Open Wallet and connect on testnet.",
+		"board": "The board is opt-in. Hide it any time."
+	},
+	tip: {
+		"fling": "The brew is moving. Drag it, then let go.",
+		"capture": "Tap Capture to keep a still, a loop, and a recipe.",
+		"gather": "Tap Gather. Friends join with the code.",
+		"share": "Share copies a link that replays this brew.",
+		"master": "Master is on. Open Tools for stir, hue, swirl, bloom, and freeze.",
+		"wallet": "Wallet lists testnet mints. You sign each transfer.",
+		"board": "The board stores a handle and a score. Hide removes yours."
+	},
+	level: {
+		"spark": "Spark",
+		"stir": "Stir",
+		"circle": "Circle",
+		"keep": "Keep",
+		"master": "Master",
+		"max": "Master is the top."
+	},
+	levelUp: "Level up",
+	streak: "Streak",
+	badges: { "empty": "Badges show up as you brew." },
+	badge: {
+		"spark": "Opened",
+		"drop": "First drop",
+		"sensor": "Sensor",
+		"circle": "Circle",
+		"keep": "Capture",
+		"share": "Shared",
+		"streak": "Three-day streak",
+		"fling": "Fling",
+		"mint": "Mint",
+		"master": "Master"
+	},
+	tools: {
+		"title": "Tools",
+		"body": "Full device resolution, within what this GPU can draw.",
+		"stir": "Stir",
+		"hue": "Hue",
+		"swirl": "Swirl",
+		"bloom": "Bloom",
+		"freeze": "Freeze",
+		"thaw": "Thaw"
+	},
+	wallet: {
+		"open": "Wallet",
+		"mints": "Mints",
+		"empty": "No testnet mint on this device yet.",
+		"token": "Token id",
+		"to": "Send to",
+		"transfer": "Transfer",
+		"use": "Use",
+		"sent": "Transfer submitted.",
+		"fail": "The wallet did not send it.",
+		"wrongChain": "Switch to Robinhood Chain testnet."
+	},
+	board: {
+		"open": "Board",
+		"body": "Opt in with a pseudonym or an emoji. No name, email, or wallet is stored. Hide deletes your row.",
+		"handle": "Handle",
+		"need": "Pick a handle first. An emoji is enough.",
+		"join": "Show me on the board",
+		"hide": "Hide me and delete my row",
+		"empty": "No one is on the board yet."
+	}
+};
+function t(path) {
+	let cur = en_default;
+	for (const part of path.split(".")) {
+		if (!cur || typeof cur !== "object" || !(part in cur)) return path;
+		cur = cur[part];
+	}
+	return typeof cur === "string" ? cur : path;
+}
+function NextStep({ id }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+		className: "next-step",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: t("next.label") }),
+			" ",
+			t(`next.${id}`)
+		]
+	});
+}
+function TipCard({ id, onDismiss }) {
+	const startX = (0, import_react.useRef)(0);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+		className: "tip",
+		onPointerDown: (event) => {
+			startX.current = event.clientX;
+		},
+		onPointerUp: (event) => {
+			if (Math.abs(event.clientX - startX.current) > 48) onDismiss();
+		},
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: t(`tip.${id}`) }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+			type: "button",
+			className: "text-btn",
+			"aria-label": t("close"),
+			onClick: onDismiss,
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(XeIcon, { emoji: "✖️" })
+		})]
+	});
+}
+function LevelSheet({ progress, onClose, onWallet, onBoard, onTools }) {
+	const climb = xpToNext(progress.xp);
+	const pct = climb.next ? Math.round(climb.into / climb.span * 100) : 100;
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", {
+		className: "sheet",
+		role: "dialog",
+		"aria-modal": "true",
+		"aria-label": t(`level.${progress.level}`),
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "sheet-card",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "row",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", { children: [
+						t(`level.${progress.level}`),
+						" · ",
+						progress.xp,
+						" XP"
+					] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: "icon-btn",
+						"aria-label": t("close"),
+						onClick: onClose,
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(XeIcon, { emoji: "✖️" })
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "xp-bar",
+					"aria-hidden": "true",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { width: `${pct}%` } })
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+					className: "muted",
+					children: [
+						t("streak"),
+						" ",
+						progress.streak,
+						climb.next ? ` · ${climb.need} XP → ${t(`level.${climb.next}`)}` : ` · ${t("level.max")}`
+					]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ul", {
+					className: "badges",
+					children: [progress.badges.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", {
+						className: "muted",
+						children: t("badges.empty")
+					}), progress.badges.map((badge) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XeIcon, { emoji: "⭐" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: t(`badge.${badge}`) })] }, badge))]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "row wrap",
+					children: [
+						progress.level === "master" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+							type: "button",
+							className: "chip emphasis",
+							onClick: onTools,
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XeIcon, { emoji: "🪄" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: t("tools.title") })]
+						}),
+						walletUnlocked(progress) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+							type: "button",
+							className: "chip",
+							onClick: onWallet,
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XeIcon, { emoji: "🔗" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: t("wallet.open") })]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+							type: "button",
+							className: "chip",
+							onClick: onBoard,
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XeIcon, { emoji: "⭐" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: t("board.open") })]
+						})
+					]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("ol", {
+					className: "levels",
+					children: LEVELS.map((level) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+						className: level.id === progress.level ? "on" : void 0,
+						children: [
+							t(`level.${level.id}`),
+							" · ",
+							level.xp,
+							" XP"
+						]
+					}, level.id))
+				})
+			]
+		})
+	});
+}
+function MasterSheet({ onClose }) {
+	const [stir, setStir] = (0, import_react.useState)(masterMix.stir);
+	const [hue, setHue] = (0, import_react.useState)(masterMix.hue);
+	const [swirl, setSwirl] = (0, import_react.useState)(masterMix.swirl);
+	const [bloom, setBloom] = (0, import_react.useState)(masterMix.bloom);
+	const [freeze, setFreeze] = (0, import_react.useState)(masterMix.freeze);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", {
+		className: "sheet",
+		role: "dialog",
+		"aria-modal": "true",
+		"aria-label": t("tools.title"),
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "sheet-card",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "row",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: t("tools.title") }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: "icon-btn",
+						"aria-label": t("close"),
+						onClick: onClose,
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(XeIcon, { emoji: "✖️" })
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "muted",
+					children: t("tools.body")
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { children: [t("tools.stir"), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+					type: "range",
+					min: 0,
+					max: 1,
+					step: .05,
+					value: stir,
+					onChange: (event) => {
+						const value = Number(event.target.value);
+						setStir(value);
+						masterMix.stir = value;
+					}
+				})] }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { children: [t("tools.hue"), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+					type: "range",
+					min: -40,
+					max: 40,
+					step: 1,
+					value: hue,
+					onChange: (event) => {
+						const value = Number(event.target.value);
+						setHue(value);
+						masterMix.hue = value;
+					}
+				})] }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { children: [t("tools.swirl"), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+					type: "range",
+					min: 0,
+					max: 1,
+					step: .05,
+					value: swirl,
+					onChange: (event) => {
+						const value = Number(event.target.value);
+						setSwirl(value);
+						masterMix.swirl = value;
+					}
+				})] }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { children: [t("tools.bloom"), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+					type: "range",
+					min: 0,
+					max: 1,
+					step: .05,
+					value: bloom,
+					onChange: (event) => {
+						const value = Number(event.target.value);
+						setBloom(value);
+						masterMix.bloom = value;
+					}
+				})] }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+					type: "button",
+					className: freeze ? "chip on" : "chip",
+					onClick: () => {
+						const next = !freeze;
+						setFreeze(next);
+						masterMix.freeze = next;
+					},
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XeIcon, { emoji: "❄️" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: freeze ? t("tools.thaw") : t("tools.freeze") })]
+				})
+			]
+		})
+	});
+}
+function WalletSheet({ wallet, onWallet, onClose, onNotice }) {
+	const [owned, setOwned] = (0, import_react.useState)([]);
+	const [notes, setNotes] = (0, import_react.useState)([]);
+	const [tokenId, setTokenId] = (0, import_react.useState)("");
+	const [to, setTo] = (0, import_react.useState)("");
+	const [busy, setBusy] = (0, import_react.useState)(false);
+	(0, import_react.useEffect)(() => {
+		setNotes(loadMints());
+		if (!wallet || !CHAIN.contract) return;
+		let stop = false;
+		listOwnedTokens(wallet.address).then((rows) => {
+			if (!stop) setOwned(rows);
+		}).catch(() => {
+			if (!stop) setOwned([]);
+		});
+		return () => {
+			stop = true;
+		};
+	}, [wallet]);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", {
+		className: "sheet",
+		role: "dialog",
+		"aria-modal": "true",
+		"aria-label": t("wallet.open"),
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "sheet-card",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "row",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: t("wallet.open") }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: "icon-btn",
+						"aria-label": t("close"),
+						onClick: onClose,
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(XeIcon, { emoji: "✖️" })
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+					className: "muted",
+					children: [
+						CHAIN.name,
+						" · ",
+						CHAIN.id
+					]
+				}),
+				!walletAvailable() && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: t("mint.noWallet") }),
+				walletAvailable() && !wallet && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+					type: "button",
+					className: "emphasis",
+					onClick: () => {
+						connectWallet().then(onWallet).catch((error) => onNotice(error instanceof Error ? error.message : t("mint.noWallet")));
+					},
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XeIcon, { emoji: "🔗" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: t("mint.connect") })]
+				}),
+				wallet && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+					className: "muted",
+					children: [
+						wallet.address.slice(0, 6),
+						"…",
+						wallet.address.slice(-4),
+						" · ",
+						wallet.balanceEth,
+						" ETH",
+						wallet.chainId === CHAIN.id ? "" : ` · ${t("wallet.wrongChain")}`
+					]
+				}),
+				!CHAIN.contract && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: t("mint.noContract") }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: t("wallet.mints") }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ul", {
+					className: "drops",
+					children: [
+						owned.length === 0 && notes.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", {
+							className: "muted",
+							children: t("wallet.empty")
+						}),
+						owned.map((token) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XeIcon, { emoji: "✨" }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: ["#", token.id] }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								type: "button",
+								className: "chip",
+								onClick: () => setTokenId(token.id),
+								children: t("wallet.use")
+							})
+						] }, token.id)),
+						notes.map((note) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XeIcon, { emoji: "📸" }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+							note.hash.slice(0, 10),
+							" · ",
+							note.uri.replace(/^https?:\/\//, "").slice(0, 28)
+						] })] }, note.hash))
+					]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { children: [t("wallet.token"), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+					value: tokenId,
+					inputMode: "numeric",
+					onChange: (event) => setTokenId(event.target.value)
+				})] }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { children: [t("wallet.to"), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+					value: to,
+					spellCheck: false,
+					onChange: (event) => setTo(event.target.value.trim())
+				})] }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					type: "button",
+					className: "emphasis",
+					disabled: !wallet || !CHAIN.contract || busy,
+					onClick: () => {
+						if (!wallet) return;
+						setBusy(true);
+						transferToken(wallet.address, to, tokenId).then((hash) => {
+							onNotice(`${t("wallet.sent")} ${hash.slice(0, 10)}`);
+							return listOwnedTokens(wallet.address).then(setOwned).catch(() => void 0);
+						}).catch((error) => onNotice(error instanceof Error ? error.message : t("wallet.fail"))).finally(() => setBusy(false));
+					},
+					children: t("wallet.transfer")
+				})
+			]
+		})
+	});
+}
+function BoardSheet({ rows, handle, optIn, onHandle, onOptIn, onHide, onClose }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", {
+		className: "sheet",
+		role: "dialog",
+		"aria-modal": "true",
+		"aria-label": t("board.open"),
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "sheet-card",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "row",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: t("board.open") }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: "icon-btn",
+						"aria-label": t("close"),
+						onClick: onClose,
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(XeIcon, { emoji: "✖️" })
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "muted",
+					children: t("board.body")
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { children: [t("board.handle"), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+					value: handle,
+					maxLength: 16,
+					onChange: (event) => onHandle(event.target.value)
+				})] }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "row wrap",
+					children: [
+						"🫧",
+						"🔥",
+						"🌿",
+						"🌙",
+						"🍯",
+						"❄️",
+						"✨"
+					].map((emoji) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: "icon-btn",
+						onClick: () => onHandle(cleanHandle(emoji) || emoji),
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(XeIcon, { emoji })
+					}, emoji))
+				}),
+				!optIn && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					type: "button",
+					className: "emphasis",
+					onClick: onOptIn,
+					children: t("board.join")
+				}),
+				optIn && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					type: "button",
+					onClick: onHide,
+					children: t("board.hide")
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ol", {
+					className: "board",
+					children: [rows.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", {
+						className: "muted",
+						children: t("board.empty")
+					}), rows.map((row, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+						index + 1,
+						". ",
+						row.handle
+					] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+						className: "muted",
+						children: [
+							row.xp,
+							" XP · ",
+							t(`level.${row.level}`)
+						]
+					})] }, `${row.handle}-${index}`))]
+				})
+			]
+		})
+	});
+}
+var ctx = null;
+var muted = false;
+function unlockAudio() {
+	if (typeof window === "undefined") return;
+	try {
+		const AC = window.AudioContext || window.webkitAudioContext;
+		if (!AC) return;
+		ctx ??= new AC();
+		if (ctx.state === "suspended") ctx.resume();
+	} catch {
+		ctx = null;
+	}
+}
+function setMuted(next) {
+	muted = next;
+}
+function isMuted() {
+	return muted;
+}
+function pluck(hue, energy = .4) {
+	if (!ctx || muted) return;
+	const now = ctx.currentTime;
+	const osc = ctx.createOscillator();
+	const gain = ctx.createGain();
+	osc.type = energy > .8 ? "sawtooth" : "triangle";
+	osc.frequency.value = 160 + hue % 360 * 1.4;
+	gain.gain.setValueAtTime(1e-4, now);
+	gain.gain.exponentialRampToValueAtTime(.06, now + .02);
+	gain.gain.exponentialRampToValueAtTime(1e-4, now + .45);
+	osc.connect(gain);
+	gain.connect(ctx.destination);
+	osc.start(now);
+	osc.stop(now + .48);
+}
+function burstSound() {
+	if (!ctx || muted) return;
+	const now = ctx.currentTime;
+	const osc = ctx.createOscillator();
+	const gain = ctx.createGain();
+	osc.type = "sine";
+	osc.frequency.setValueAtTime(240, now);
+	osc.frequency.exponentialRampToValueAtTime(90, now + .3);
+	gain.gain.setValueAtTime(.07, now);
+	gain.gain.exponentialRampToValueAtTime(1e-4, now + .32);
+	osc.connect(gain);
+	gain.connect(ctx.destination);
+	osc.start(now);
+	osc.stop(now + .34);
+}
+var RoomError = class extends Error {};
+async function roomCall(body) {
+	const res = await fetch("/api/conjure", {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify(body)
+	});
+	const data = await res.json();
+	if (!res.ok) throw new RoomError(data.error || "The circle did not answer.");
+	return data;
+}
+async function roomGet(code, deviceId) {
+	const res = await fetch(`/api/conjure?code=${encodeURIComponent(code)}&device=${encodeURIComponent(deviceId)}`);
+	const data = await res.json();
+	if (!res.ok) throw new RoomError(data.error || "That circle is gone.");
+	return data;
 }
 /** Drawn cauldron used when WebGL is missing. Same brew math as the 3D stage. */
 function FlatBrew({ drops, vibe, reduced }) {
@@ -451,9 +1339,10 @@ function FlatBrew({ drops, vibe, reduced }) {
 			ctx.fillStyle = "#110e0c";
 			ctx.fillRect(0, 0, width, height);
 			const brew = computeBrew(drops, blendSensors([liveSensor, remoteSensor]), vibe);
-			time += reduced ? .004 : .016;
-			const cx = width / 2;
-			const cy = height * .58;
+			const pace = masterMix.freeze ? 0 : reduced ? .004 : .016 * (.7 + masterMix.stir);
+			time += pace;
+			const cx = width / 2 + liveSensor.tiltX * width * .08;
+			const cy = height * .58 + liveSensor.tiltY * height * .05;
 			const radius = Math.min(width, height) * .22 * brew.scale;
 			const glow = ctx.createRadialGradient(cx, cy - radius, radius * .2, cx, cy - radius, radius * 1.8);
 			glow.addColorStop(0, brew.color);
@@ -464,7 +1353,7 @@ function FlatBrew({ drops, vibe, reduced }) {
 			ctx.fill();
 			ctx.fillStyle = brew.color;
 			ctx.beginPath();
-			const wobble = reduced ? 0 : Math.sin(time * (2 + brew.swirl)) * 8 * brew.spikes;
+			const wobble = reduced || masterMix.freeze ? 0 : Math.sin(time * (2 + brew.swirl * (.5 + masterMix.swirl))) * 8 * brew.spikes;
 			ctx.ellipse(cx, cy - radius * 1.15, radius * .72 + wobble, radius * .85, 0, 0, Math.PI * 2);
 			ctx.fill();
 			ctx.fillStyle = "#3a2c24";
@@ -502,26 +1391,6 @@ function FlatBrew({ drops, vibe, reduced }) {
 		"aria-hidden": "true"
 	});
 }
-var based = false;
-/** Self-hosted subset. Never hotlink the CDN at runtime. */
-function xeSrc(emoji) {
-	if (!based) {
-		(0, import_xeroemoji.setBase)("/xeroemoji/");
-		based = true;
-	}
-	return (0, import_xeroemoji.get)(emoji)?.svgUrl ?? "";
-}
-function XeIcon({ emoji, className }) {
-	const src = xeSrc(emoji);
-	if (!src) return null;
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
-		src,
-		alt: "",
-		"aria-hidden": "true",
-		draggable: false,
-		className: className ? `xe ${className}` : "xe"
-	});
-}
 function tierFrom(signals) {
 	if (signals.saveData || signals.memory > 0 && signals.memory <= 2 || signals.cores <= 2) return "low";
 	if (signals.webgpu && signals.cores >= 8 && (signals.memory === 0 || signals.memory >= 8)) return "high";
@@ -535,7 +1404,8 @@ function qualityFromTier(tier, webgpu, webgl2) {
 		particles: 70,
 		detail: 2,
 		webgpu,
-		webgl2
+		webgl2,
+		master: false
 	};
 	if (tier === "high") return {
 		tier,
@@ -543,7 +1413,8 @@ function qualityFromTier(tier, webgpu, webgl2) {
 		particles: 420,
 		detail: 5,
 		webgpu,
-		webgl2
+		webgl2,
+		master: false
 	};
 	return {
 		tier,
@@ -551,10 +1422,48 @@ function qualityFromTier(tier, webgpu, webgl2) {
 		particles: 180,
 		detail: 3,
 		webgpu,
-		webgl2
+		webgl2,
+		master: false
 	};
 }
-async function probeQuality() {
+/** Device pixel ratio, never above the GPU's max texture or an 8 megapixel budget. */
+function capDpr(dpr, maxTexture, width, height) {
+	const byTexture = Math.max(1, maxTexture) / Math.max(1, width, height);
+	const pixels = Math.max(1, width * height);
+	const byBudget = Math.sqrt(8e6 / pixels);
+	return Math.max(1, Math.floor(Math.min(Math.max(dpr, 1), byTexture, byBudget, 3) * 100) / 100);
+}
+function masterQuality(base, gpu) {
+	const dpr = capDpr(gpu.dpr, gpu.maxTexture, gpu.width, gpu.height);
+	return {
+		...base,
+		tier: "high",
+		master: true,
+		dpr: [1, dpr],
+		particles: Math.min(800, Math.max(base.particles, 640)),
+		detail: 5,
+		webgpu: base.webgpu,
+		webgl2: base.webgl2
+	};
+}
+function readGpu() {
+	const dpr = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
+	const width = typeof window === "undefined" ? 1280 : window.innerWidth || 1280;
+	const height = typeof window === "undefined" ? 800 : window.innerHeight || 800;
+	let maxTexture = 4096;
+	if (typeof document !== "undefined") try {
+		const gl = document.createElement("canvas").getContext("webgl2");
+		const size = gl?.getParameter(gl.MAX_TEXTURE_SIZE);
+		if (typeof size === "number" && size >= 1024) maxTexture = size;
+	} catch {}
+	return {
+		dpr,
+		maxTexture,
+		width,
+		height
+	};
+}
+async function probeQuality(opts) {
 	const nav = navigator;
 	let webgpu = false;
 	if (nav.gpu?.requestAdapter) try {
@@ -568,12 +1477,14 @@ async function probeQuality() {
 	} catch {
 		webgl2 = false;
 	}
-	return qualityFromTier(tierFrom({
+	const base = qualityFromTier(tierFrom({
 		webgpu,
 		cores: navigator.hardwareConcurrency || 4,
 		memory: nav.deviceMemory ?? 0,
 		saveData: Boolean(nav.connection?.saveData)
 	}), webgpu, webgl2);
+	if (!opts?.master) return base;
+	return masterQuality(base, readGpu());
 }
 function hueFromRgb(r, g, b) {
 	const max = Math.max(r, g, b);
@@ -768,109 +1679,6 @@ function useSensors(kind, onError) {
 	}, [kind]);
 	return { sampleColor: () => sampleRef.current?.() };
 }
-var KEY = "conjure.creations.v1";
-var FLAGS = "conjure.flags.v1";
-var DEVICE = "conjure.device";
-var NAME = "conjure.name";
-var OPT = "conjure.optIn";
-var defaultFlags = () => ({
-	usedIngredient: false,
-	passedSensors: false,
-	usedGroup: false,
-	savedRecipe: false,
-	hintDrop: true,
-	hintSensor: true,
-	hintKeys: true
-});
-function readJson(key, fallback) {
-	if (typeof window === "undefined") return fallback;
-	try {
-		const raw = localStorage.getItem(key);
-		if (!raw) return fallback;
-		return JSON.parse(raw);
-	} catch {
-		return fallback;
-	}
-}
-function deviceId() {
-	if (typeof window === "undefined") return "server";
-	let id = localStorage.getItem(DEVICE);
-	if (!id || !/^d_[a-zA-Z0-9]{8,32}$/.test(id)) {
-		id = `d_${typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "").slice(0, 16) : Math.random().toString(36).slice(2, 12)}`;
-		localStorage.setItem(DEVICE, id);
-	}
-	return id;
-}
-function loadName() {
-	return readJson(NAME, "");
-}
-function saveName(name) {
-	localStorage.setItem(NAME, JSON.stringify(name));
-}
-function loadOptIn() {
-	return readJson(OPT, false);
-}
-function saveOptIn(value) {
-	localStorage.setItem(OPT, JSON.stringify(value));
-}
-function loadFlags() {
-	return {
-		...defaultFlags(),
-		...readJson(FLAGS, {})
-	};
-}
-function saveFlags(flags) {
-	localStorage.setItem(FLAGS, JSON.stringify(flags));
-}
-function loadCreations() {
-	const list = readJson(KEY, []);
-	return Array.isArray(list) ? list : [];
-}
-function saveCreation(creation) {
-	const list = loadCreations().filter((item) => item.id !== creation.id);
-	list.unshift(creation);
-	localStorage.setItem(KEY, JSON.stringify(list.slice(0, 24)));
-}
-function creationById(id) {
-	return loadCreations().find((item) => item.id === id) ?? null;
-}
-function encodeCreation(creation) {
-	const copy = {
-		...creation,
-		still: void 0
-	};
-	const json = JSON.stringify(copy);
-	const bytes = new TextEncoder().encode(json);
-	let bin = "";
-	bytes.forEach((b) => {
-		bin += String.fromCharCode(b);
-	});
-	return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-function decodeCreation(payload) {
-	try {
-		const pad = payload.length % 4 === 0 ? "" : "=".repeat(4 - payload.length % 4);
-		const b64 = payload.replace(/-/g, "+").replace(/_/g, "/") + pad;
-		const bin = atob(b64);
-		const bytes = new Uint8Array(bin.length);
-		for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
-		const parsed = JSON.parse(new TextDecoder().decode(bytes));
-		if (!parsed || typeof parsed.id !== "string" || !Array.isArray(parsed.drops)) return null;
-		return parsed;
-	} catch {
-		return null;
-	}
-}
-function newId() {
-	return Math.random().toString(36).slice(2, 10);
-}
-var EVENTS = "conjure.events.v1";
-function trackLocal(name) {
-	if (typeof window === "undefined") return;
-	const cur = readJson(EVENTS, {});
-	cur[name] = (cur[name] ?? 0) + 1;
-	localStorage.setItem(EVENTS, JSON.stringify(cur));
-}
 var VIBES = [
 	"calm",
 	"chaotic",
@@ -926,140 +1734,7 @@ var useBrew = create((set, get) => ({
 	setNotice: (notice) => set({ notice }),
 	setRecording: (recording) => set({ recording })
 }));
-var en_default = {
-	app: { "title": "Conjure" },
-	start: "Start",
-	soundOn: "Sound on",
-	soundOff: "Sound off",
-	optIn: "Include me when I am signed in",
-	hint: {
-		"drop": "Tap an ingredient. It drops in.",
-		"sensor": "A sensor can stir the brew.",
-		"keys": "Keys 1–8 drop ingredients."
-	},
-	vibe: {
-		"label": "Vibe",
-		"calm": "Calm",
-		"chaotic": "Chaotic",
-		"spooky": "Spooky"
-	},
-	quiet: "Keep it quiet",
-	gather: "Gather",
-	capture: "Capture",
-	share: "Share",
-	remix: "Remix",
-	close: "Close",
-	back: "Back to the cauldron",
-	credits: "Credits",
-	privacy: "Privacy",
-	copy: "Copy link",
-	copied: "Link copied.",
-	watching: "You are watching.",
-	inPot: "in the pot",
-	hostOnly: "The host captures.",
-	full: "The circle is full.",
-	sensor: {
-		"mic": "Mic",
-		"camera": "Camera",
-		"motion": "Motion",
-		"sample": "Sample color",
-		"stop": "Tap to stop"
-	},
-	mic: {
-		"line1": "Your voice shapes the brew.",
-		"line2": "Only levels are shared, not audio.",
-		"go": "Use microphone"
-	},
-	cam: {
-		"line1": "Sample a color, or wave to stir.",
-		"line2": "The picture stays on this phone.",
-		"go": "Use camera"
-	},
-	motion: {
-		"line1": "Tilt to stir. Shake for a burst.",
-		"line2": "The phone may ask for motion.",
-		"go": "Use motion"
-	},
-	denied: "You can still tap ingredients.",
-	consent: {
-		"line1": "Include you in this capture?",
-		"line2": "No answer leaves you out.",
-		"in": "Include me",
-		"out": "Leave me out",
-		"wait": "The circle is choosing."
-	},
-	record: "Saving the loop",
-	review: {
-		"title": "Captured",
-		"still": "Save still",
-		"loop": "Save loop",
-		"recipe": "Save recipe",
-		"glb": "Save GLB",
-		"mint": "Mint"
-	},
-	mint: {
-		"title": "Mint on testnet",
-		"body": "You pay gas on Robinhood Chain testnet.",
-		"connect": "Connect wallet",
-		"noWallet": "No wallet in this browser.",
-		"noContract": "No collection contract is configured.",
-		"meta": "Download metadata",
-		"cap": "Daily mint cap reached.",
-		"sent": "Mint submitted."
-	},
-	room: {
-		"title": "One cauldron",
-		"host": "You host this circle.",
-		"code": "Code",
-		"join": "Join",
-		"watch": "Watch",
-		"leave": "Leave",
-		"lock": "Lock",
-		"unlock": "Unlock",
-		"kick": "Remove",
-		"handoff": "Make host",
-		"name": "Your name",
-		"open": "Open a circle",
-		"invite": "A cauldron invited you."
-	},
-	seat: {
-		"stirrer": "Stirrer",
-		"singer": "Singer",
-		"spark": "Spark",
-		"seer": "Seer"
-	},
-	form: { "label": "Form" },
-	deep: "Reorder the drops. Mute one to keep it neutral.",
-	up: "Earlier",
-	down: "Later",
-	mute: "Mute",
-	unmute: "Restore",
-	saveRecipe: "Save recipe",
-	saved: "Recipe saved.",
-	lineage: "Remixed from",
-	report: "Report",
-	reportSent: "Report sent.",
-	reason: {
-		"spam": "Spam",
-		"unsafe": "Unsafe",
-		"other": "Other"
-	},
-	ar: "Place in room",
-	tier: "Graphics",
-	empty: "The cauldron is waiting.",
-	replay: "Replaying",
-	notFound: "This brew is not on this device.",
-	who: "Who is here"
-};
-function t(path) {
-	let cur = en_default;
-	for (const part of path.split(".")) {
-		if (!cur || typeof cur !== "object" || !(part in cur)) return path;
-		cur = cur[part];
-	}
-	return typeof cur === "string" ? cur : path;
-}
-var CauldronScene = (0, import_react.lazy)(() => import("./scene-Cxy5adLA.mjs").then((mod) => ({ default: mod.CauldronScene })));
+var CauldronScene = (0, import_react.lazy)(() => import("./scene-CJq2FG8l.mjs").then((mod) => ({ default: mod.CauldronScene })));
 var StageBoundary = class extends import_react.Component {
 	state = { bad: false };
 	static getDerivedStateFromError() {
@@ -1108,6 +1783,14 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 	const [liveMsg, setLiveMsg] = (0, import_react.useState)("");
 	const [optIn, setOptIn] = (0, import_react.useState)(false);
 	const [graphics, setGraphics] = (0, import_react.useState)("3d");
+	const [progress, setProgress] = (0, import_react.useState)(emptyProgress);
+	const [dismissed, setDismissed] = (0, import_react.useState)([]);
+	const [boardPrefs, setBoardPrefs] = (0, import_react.useState)({
+		optIn: false,
+		handle: "",
+		hidden: false
+	});
+	const [boardRows, setBoardRows] = (0, import_react.useState)([]);
 	const deviceRef = (0, import_react.useRef)("d_pending00");
 	const loops = (0, import_react.useRef)(/* @__PURE__ */ new Map());
 	const dragging = (0, import_react.useRef)(false);
@@ -1136,6 +1819,9 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 		setFlags(loadFlags());
 		setOptIn(loadOptIn());
 		setGallery(loadCreations());
+		setProgress(loadProgress());
+		setDismissed(loadDismissedTips());
+		setBoardPrefs(loadBoardPrefs());
 		const remixRaw = sessionStorage.getItem("conjure.remix");
 		if (remixRaw) {
 			sessionStorage.removeItem("conjure.remix");
@@ -1157,14 +1843,76 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 		const applyReduced = () => setReduced(reducedQuery.matches);
 		applyReduced();
 		reducedQuery.addEventListener("change", applyReduced);
-		probeQuality().then((next) => {
-			setQuality(next);
-			if (!next.webgl2) setGraphics("flat");
-		});
 		const nav = navigator;
 		if (nav.xr) nav.xr.isSessionSupported("immersive-ar").then(setXr).catch(() => setXr(false));
 		return () => reducedQuery.removeEventListener("change", applyReduced);
 	}, []);
+	(0, import_react.useEffect)(() => {
+		let stop = false;
+		const run = () => {
+			probeQuality({ master: progress.level === "master" }).then((next) => {
+				if (stop) return;
+				setQuality(next);
+				if (!next.webgl2) setGraphics("flat");
+			});
+		};
+		run();
+		window.addEventListener("resize", run);
+		return () => {
+			stop = true;
+			window.removeEventListener("resize", run);
+		};
+	}, [progress.level]);
+	(0, import_react.useEffect)(() => {
+		if (!started) return;
+		let frame = 0;
+		let last = performance.now();
+		const tick = (now) => {
+			const dt = Math.min(.1, (now - last) / 1e3);
+			last = now;
+			if (!reduced && !masterMix.freeze) {
+				decayFling(dt);
+				liveSensor.tiltX = Math.max(-1, Math.min(1, liveSensor.tiltX + flingVel.x * dt * 8));
+				liveSensor.tiltY = Math.max(-1, Math.min(1, liveSensor.tiltY + flingVel.y * dt * 8));
+			}
+			frame = requestAnimationFrame(tick);
+		};
+		frame = requestAnimationFrame(tick);
+		return () => cancelAnimationFrame(frame);
+	}, [started, reduced]);
+	function grant(action) {
+		setProgress((current) => {
+			const result = award(current, action);
+			saveProgress(result.progress);
+			if (result.leveledUp) setNotice(`${t("levelUp")}: ${t(`level.${result.progress.level}`)}`);
+			return result.progress;
+		});
+	}
+	(0, import_react.useEffect)(() => {
+		if (!boardPrefs.optIn) return;
+		const handle = cleanHandle(boardPrefs.handle);
+		if (!handle) return;
+		const timer = window.setTimeout(() => {
+			roomCall({
+				op: "board-publish",
+				device: deviceRef.current,
+				handle,
+				xp: progress.xp,
+				streak: progress.streak,
+				level: progress.level
+			}).then((data) => {
+				const rows = data.rows;
+				if (rows) setBoardRows(rows);
+			}).catch(() => void 0);
+		}, 450);
+		return () => window.clearTimeout(timer);
+	}, [
+		boardPrefs.optIn,
+		boardPrefs.handle,
+		progress.xp,
+		progress.streak,
+		progress.level
+	]);
 	(0, import_react.useEffect)(() => {
 		if (!roomCode) return;
 		let stop = false;
@@ -1303,6 +2051,7 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 			usedIngredient: true,
 			hintDrop: false
 		});
+		grant("drop");
 		say(`${ing.label} dropped in.`);
 		if (roomCode) try {
 			const snap = await roomCall({
@@ -1415,6 +2164,7 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 		setGallery(loadCreations());
 		if (chunks.length) loops.current.set(creation.id, new Blob(chunks, { type: "video/webm" }));
 		trackLocal("capture");
+		grant("capture");
 		roomCall({
 			op: "event",
 			name: "capture"
@@ -1441,6 +2191,7 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 			if ("code" in snap && snap.code) {
 				useBrew.getState().applyRoom(snap);
 				patchFlags({ usedGroup: true });
+				grant("gather");
 				setSheet("gather");
 				say(`Circle ${snap.code} is open.`);
 			}
@@ -1472,6 +2223,7 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 					usedGroup: true,
 					passedSensors: true
 				});
+				grant("gather");
 				setSheet("gather");
 				say(asWatch ? t("watching") : `Joined ${code}.`);
 			}
@@ -1483,6 +2235,7 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 		const encoded = encodeCreation(creation);
 		const url = `${window.location.origin}/c/${creation.id}?d=${encoded}`;
 		trackLocal("share");
+		grant("share");
 		roomCall({
 			op: "event",
 			name: "share"
@@ -1508,6 +2261,7 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 			title: creation.title
 		}));
 		trackLocal("remix");
+		grant("remix");
 		roomCall({
 			op: "event",
 			name: "remix"
@@ -1531,8 +2285,16 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 		});
 		setGallery(loadCreations());
 		patchFlags({ savedRecipe: true });
+		grant("recipe");
 		setNotice(t("saved"));
 	}
+	(0, import_react.useEffect)(() => {
+		if (sheet !== "board") return;
+		roomCall({ op: "board-list" }).then((data) => {
+			const rows = data.rows;
+			if (rows) setBoardRows(rows);
+		}).catch(() => void 0);
+	}, [sheet]);
 	(0, import_react.useEffect)(() => {
 		if (sheet !== "gather" || !roomCode) return;
 		const url = `${window.location.origin}/?room=${roomCode}`;
@@ -1559,16 +2321,52 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "stage",
-				onPointerDown: () => {
+				onPointerDown: (event) => {
+					if (sceneMoving({
+						started,
+						reduced,
+						frozen: masterMix.freeze
+					})) {
+						event.currentTarget.setPointerCapture(event.pointerId);
+						pointerDown(event.pointerId, event.clientX, event.clientY);
+						haptic(8);
+						return;
+					}
 					dragging.current = true;
 				},
-				onPointerUp: () => {
+				onPointerUp: (event) => {
+					if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+						if (isFling(pointerUp(event.pointerId))) {
+							haptic([
+								12,
+								28,
+								18
+							]);
+							grant("fling");
+						}
+						return;
+					}
+					dragging.current = false;
+				},
+				onPointerCancel: (event) => {
+					pointerUp(event.pointerId);
 					dragging.current = false;
 				},
 				onPointerLeave: () => {
 					dragging.current = false;
 				},
 				onPointerMove: (event) => {
+					if (sceneMoving({
+						started,
+						reduced,
+						frozen: masterMix.freeze
+					}) && event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+						const delta = pointerMove(event.pointerId, event.clientX, event.clientY);
+						if (!delta) return;
+						liveSensor.tiltX = Math.max(-1, Math.min(1, liveSensor.tiltX + delta.dx / 160));
+						liveSensor.tiltY = Math.max(-1, Math.min(1, liveSensor.tiltY + delta.dy / 160));
+						return;
+					}
 					if (!dragging.current || !started) return;
 					liveSensor.tiltX = Math.max(-1, Math.min(1, liveSensor.tiltX + event.movementX / 180));
 					liveSensor.tiltY = Math.max(-1, Math.min(1, liveSensor.tiltY + event.movementY / 180));
@@ -1613,6 +2411,16 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "top-actions",
 					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+							type: "button",
+							className: "chip",
+							onClick: () => setSheet("level"),
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XeIcon, { emoji: "⭐" }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+								t(`level.${progress.level}`),
+								" · ",
+								progress.xp
+							] })]
+						}),
 						started && !replay && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 							type: "button",
 							className: "chip",
@@ -1655,6 +2463,39 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 						})
 					]
 				})]
+			}),
+			!replay && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(NextStep, { id: nextStepId(progress) }),
+			!replay && currentTip(dismissed, {
+				fling: started && !reduced && !masterMix.freeze,
+				capture: flags.usedIngredient,
+				gather: flags.passedSensors,
+				share: gallery.length > 0,
+				master: progress.level === "master",
+				wallet: walletUnlocked(progress),
+				board: progress.xp >= 40 && !boardPrefs.hidden
+			}) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TipCard, {
+				id: currentTip(dismissed, {
+					fling: started && !reduced && !masterMix.freeze,
+					capture: flags.usedIngredient,
+					gather: flags.passedSensors,
+					share: gallery.length > 0,
+					master: progress.level === "master",
+					wallet: walletUnlocked(progress),
+					board: progress.xp >= 40 && !boardPrefs.hidden
+				}),
+				onDismiss: () => {
+					const id = currentTip(dismissed, {
+						fling: started && !reduced && !masterMix.freeze,
+						capture: flags.usedIngredient,
+						gather: flags.passedSensors,
+						share: gallery.length > 0,
+						master: progress.level === "master",
+						wallet: walletUnlocked(progress),
+						board: progress.xp >= 40 && !boardPrefs.hidden
+					});
+					if (!id) return;
+					setDismissed(dismissTip(id));
+				}
 			}),
 			notice && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 				className: "notice",
@@ -1743,6 +2584,7 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 							onClick: () => {
 								unlockAudio();
 								useBrew.getState().start();
+								grant("start");
 								say("The cauldron is open.");
 							},
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XeIcon, {
@@ -2009,6 +2851,7 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 				go: t("mic.go"),
 				onGo: () => {
 					setKind("mic");
+					grant("sensor");
 					setSheet(null);
 					patchFlags({
 						passedSensors: true,
@@ -2024,6 +2867,7 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 				go: t("cam.go"),
 				onGo: () => {
 					setKind("camera");
+					grant("sensor");
 					setSheet(null);
 					patchFlags({
 						passedSensors: true,
@@ -2039,6 +2883,7 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 				go: t("motion.go"),
 				onGo: () => {
 					setKind("motion");
+					grant("sensor");
 					setSheet(null);
 					patchFlags({
 						passedSensors: true,
@@ -2389,6 +3234,12 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 									creationId: review.id
 								}).then(() => mintWithWallet(wallet.address, `${window.location.origin}/c/${review.id}`)).then((hash) => {
 									trackLocal("mint");
+									grant("mint");
+									saveMint({
+										hash,
+										uri: `${window.location.origin}/c/${review.id}`,
+										at: Date.now()
+									});
 									setNotice(`${t("mint.sent")} ${hash.slice(0, 10)}`);
 								}).catch((error) => setNotice(error instanceof Error ? error.message : t("mint.cap")));
 							},
@@ -2396,6 +3247,62 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 						})
 					]
 				})
+			}),
+			sheet === "level" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LevelSheet, {
+				progress,
+				onClose: () => setSheet(null),
+				onWallet: () => setSheet("wallet"),
+				onBoard: () => setSheet("board"),
+				onTools: () => setSheet("tools")
+			}),
+			sheet === "tools" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MasterSheet, { onClose: () => setSheet(null) }),
+			sheet === "wallet" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(WalletSheet, {
+				wallet,
+				onWallet: setWallet,
+				onClose: () => setSheet(null),
+				onNotice: setNotice
+			}),
+			sheet === "board" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BoardSheet, {
+				rows: boardRows,
+				handle: boardPrefs.handle,
+				optIn: boardPrefs.optIn && !boardPrefs.hidden,
+				onHandle: (value) => {
+					const next = {
+						...boardPrefs,
+						handle: value
+					};
+					setBoardPrefs(next);
+					saveBoardPrefs(next);
+				},
+				onOptIn: () => {
+					const handle = cleanHandle(boardPrefs.handle);
+					if (!handle) {
+						setNotice(t("board.need"));
+						return;
+					}
+					const next = {
+						optIn: true,
+						handle,
+						hidden: false
+					};
+					setBoardPrefs(next);
+					saveBoardPrefs(next);
+				},
+				onHide: () => {
+					const next = {
+						...boardPrefs,
+						optIn: false,
+						hidden: true
+					};
+					setBoardPrefs(next);
+					saveBoardPrefs(next);
+					setBoardRows([]);
+					roomCall({
+						op: "board-hide",
+						device: deviceRef.current
+					}).catch(() => void 0);
+				},
+				onClose: () => setSheet(null)
 			}),
 			sheet === "report" && replay && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", {
 				className: "sheet",
@@ -2559,4 +3466,4 @@ function PageFrame({ title, children }) {
 	});
 }
 //#endregion
-export { decaySensor as a, remoteSensor as c, setGrabStill as d, t as f, computeBrew as i, setEnterAR as l, PageFrame as n, liveSensor as o, blendSensors as r, loadReplay as s, ConjureApp as t, setExportGlb as u };
+export { decaySensor as a, loadReplay as c, setEnterAR as d, setExportGlb as f, computeBrew as i, masterMix as l, t as m, PageFrame as n, flingVel as o, setGrabStill as p, blendSensors as r, liveSensor as s, ConjureApp as t, remoteSensor as u };

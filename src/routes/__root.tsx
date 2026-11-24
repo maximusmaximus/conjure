@@ -38,6 +38,15 @@ export const Route = createRootRoute({
           <Outlet />
         </AuthProvider>
         <p className="made-in">
+          <a
+            className="made-in-git"
+            href="https://github.com/maximusmaximus/conjure"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="GitHub"
+          >
+            <img src="/xeroemoji/svg/1f4bb.svg" alt="" width="16" height="16" />
+          </a>
           made with ❤️ in SF by{" "}
           <a href="https://maxi.grok.me" target="_blank" rel="noopener noreferrer">
             maxi.grok.me
