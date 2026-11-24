@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Conjure",
+      "hasCanvas": true,
+      "bodyTextLen": 192,
+      "bodyTextHash": "23a0f0aeb41a0c77ee2be1b174c5cec05043e1d336d495f24283908c71ff76eb",
+      "bodyTextPrefix": "Conjure Spark · 0 Next Drop an ingredient. Ember Moss Moon Salt ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/dev-smoke.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Conjure",
+      "hasCanvas": true,
+      "bodyTextLen": 166,
+      "bodyTextHash": "83bee31b9b005ba3240f1fc443b21815153331254ad38d95270f4a81a051c7e9",
+      "bodyTextPrefix": "Conjure Spark · 0 Next Drop an ingredient. Start Sound on Includ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/dev-smoke-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/dev-smoke.json"
+}

@@ -1,4 +1,4 @@
-//#region node_modules/.nitro/vite/services/ssr/assets/_tanstack-start-manifest_v-CcDhxObF.js
+//#region node_modules/.nitro/vite/services/ssr/assets/_tanstack-start-manifest_v-DwRmdARN.js
 var tsrStartManifest = () => ({ routes: {
 	__root__: {
 		filePath: "/workspace/src/routes/__root.tsx",
@@ -10,7 +10,7 @@ var tsrStartManifest = () => ({ routes: {
 			"/c/$id"
 		],
 		preloads: [
-			"/assets/index-CN2jKrI0.js",
+			"/assets/index-_pn55PD0.js",
 			"/assets/rolldown-runtime-B0Z9INg1.js",
 			"/assets/with-selector-quzb8Bfu.js",
 			"/assets/lazyRouteComponent-BmzNGJn7.js",
@@ -20,28 +20,28 @@ var tsrStartManifest = () => ({ routes: {
 		scripts: [{ attrs: {
 			type: "module",
 			async: !0,
-			src: "/assets/index-CN2jKrI0.js"
+			src: "/assets/index-_pn55PD0.js"
 		} }]
 	},
 	"/": {
 		filePath: "/workspace/src/routes/index.tsx",
 		children: void 0,
-		preloads: ["/assets/routes-CGEE5-zV.js", "/assets/app-Bp1a7RCd.js"]
+		preloads: ["/assets/routes-D02CKesY.js", "/assets/app-DbF0Si0J.js"]
 	},
 	"/credits": {
 		filePath: "/workspace/src/routes/credits.tsx",
 		children: void 0,
-		preloads: ["/assets/credits-Dq1s6CVS.js", "/assets/app-Bp1a7RCd.js"]
+		preloads: ["/assets/credits-CqaaKPfK.js", "/assets/app-DbF0Si0J.js"]
 	},
 	"/privacy": {
 		filePath: "/workspace/src/routes/privacy.tsx",
 		children: void 0,
-		preloads: ["/assets/privacy-BW6ZaDek.js", "/assets/app-Bp1a7RCd.js"]
+		preloads: ["/assets/privacy-D8GsJb0c.js", "/assets/app-DbF0Si0J.js"]
 	},
 	"/c/$id": {
 		filePath: "/workspace/src/routes/c.$id.tsx",
 		children: void 0,
-		preloads: ["/assets/c._id-Cyr_WytH.js", "/assets/app-Bp1a7RCd.js"]
+		preloads: ["/assets/c._id-BWFWxtbl.js", "/assets/app-DbF0Si0J.js"]
 	}
 } });
 //#endregion

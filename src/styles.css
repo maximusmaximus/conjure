@@ -52,11 +52,64 @@
   touch-action: none;
 }
 
-.stage canvas,
-.flat-brew {
-  width: 100%;
-  height: 100%;
-  display: block;
+.tray-toggle {
+  position: absolute;
+  z-index: 5;
+  left: 0.65rem;
+  bottom: calc(1.7rem + env(safe-area-inset-bottom));
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+  border: 1px solid var(--color-line);
+}
+
+.stage::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: min(52vh, 26rem);
+  height: min(52vh, 26rem);
+  transform: translate(-50%, -54%);
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    transparent 0 22%,
+    color-mix(in srgb, var(--brew, transparent) 72%, transparent) 46%,
+    transparent 72%
+  );
+  mix-blend-mode: screen;
+}
+
+.brew-pulse {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  z-index: 2;
+  width: min(46vh, 20rem);
+  height: min(46vh, 20rem);
+  border-radius: 50%;
+  border: 8px solid transparent;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: screen;
+}
+
+.tool-dock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: min(22rem, 100%);
+}
+
+.tool-dock label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--color-muted);
 }
 
 .topbar {
@@ -218,6 +271,10 @@
   display: flex;
   gap: 0.4rem;
   align-items: center;
+}
+
+.thumb-row {
+  padding-left: 3.2rem;
 }
 
 .sensor-row {
@@ -621,6 +678,7 @@
     flex-direction: column;
     overflow-y: auto;
     max-height: 100%;
+    padding-bottom: 4.2rem;
   }
   .hint {
     bottom: 1rem;
@@ -649,6 +707,9 @@
 }
 
 @media (min-width: 900px) {
+  .thumb-row {
+    padding-left: 0;
+  }
   .thumb {
     left: 6.4rem;
     right: calc(min(22rem, 34vw) + 1rem);
@@ -673,6 +734,7 @@
     flex-direction: column;
     overflow: auto;
     max-height: 100%;
+    padding-bottom: 4.2rem;
   }
   .keys-hint {
     display: flex;

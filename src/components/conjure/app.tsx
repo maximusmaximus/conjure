@@ -1,4 +1,4 @@
-import { BoardSheet, LevelSheet, MasterSheet, NextStep, TipCard, WalletSheet, type BoardRow } from "@/components/conjure/layers";
+import { BoardSheet, LevelSheet, NextStep, TipCard, ToolDock, WalletSheet, type BoardRow } from "@/components/conjure/layers";
 import { Link } from "@tanstack/react-router";
 import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { burstSound, isMuted, pluck, setMuted, unlockAudio } from "@/conjure/audio";
@@ -9,6 +9,7 @@ import {
   VIBES,
   blendSensors,
   computeBrew,
+  hslToHex,
   ingredientById,
   titleFromDrops,
   type Drop,
@@ -21,8 +22,9 @@ import { resolveVotes } from "@/conjure/consent";
 import { decayFling, flingVel, haptic, isFling, pointerDown, pointerMove, pointerUp, sceneMoving } from "@/conjure/fling";
 import { FlatBrew } from "@/conjure/flat";
 import { XeIcon } from "@/conjure/icons";
-import { downloadGlb, liveSensor, masterMix, remoteSensor, startAR, takeStill } from "@/conjure/live";
+import { burstSparks, downloadGlb, flashPulse, liveSensor, masterMix, punchColor, remoteSensor, shownColor, startAR, takeStill, toolTouch, pulse } from "@/conjure/live";
 import { probeQuality, type Quality } from "@/conjure/quality";
+import { brewMetadata, impulse, rememberMotion, restoreSpin, spin, spinSnapshot, stepSpin } from "@/conjure/spin";
 import {
   award,
   cleanHandle,
@@ -134,12 +136,19 @@ export function ConjureApp({
   const [dismissed, setDismissed] = useState<TipId[]>([]);
   const [boardPrefs, setBoardPrefs] = useState<BoardPrefs>({ optIn: false, handle: "", hidden: false });
   const [boardRows, setBoardRows] = useState<BoardRow[]>([]);
+  const [tray, setTray] = useState(true);
+  const [retired, setRetired] = useState<string[]>([]);
   const deviceRef = useRef("d_pending00");
   const loops = useRef(new Map<string, Blob>());
   const dragging = useRef(false);
+  const sparkAt = useRef(0);
+  const kindRef = useRef<SensorKind>(null);
 
   const sensors = useSensors(kind, (message) => {
+    setRetired((list) => list.filter((id) => id !== `sensor:${kindRef.current}`));
+    setTray(true);
     setKind(null);
+    kindRef.current = null;
     setNotice(`${message} ${t("denied")}`);
   });
 
@@ -170,6 +179,7 @@ export function ConjureApp({
           vibe: creation.vibe,
           form: creation.form,
         });
+        if (creation.spin) restoreSpin(creation.spin);
         setReview(null);
       } catch {
         /* ignore a bad stash */
@@ -207,13 +217,53 @@ export function ConjureApp({
     if (!started) return;
     let frame = 0;
     let last = performance.now();
+    let prevTiltX = liveSensor.tiltX;
+    let prevTiltY = liveSensor.tiltY;
     const tick = (now: number) => {
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
-      if (!reduced && !masterMix.freeze) {
-        decayFling(dt);
-        liveSensor.tiltX = Math.max(-1, Math.min(1, liveSensor.tiltX + flingVel.x * dt * 8));
-        liveSensor.tiltY = Math.max(-1, Math.min(1, liveSensor.tiltY + flingVel.y * dt * 8));
+      if (masterMix.freeze) {
+        spin.vx = 0;
+        spin.vy = 0;
+        spin.vz = 0;
+      } else {
+        if (!reduced) {
+          decayFling(dt);
+          liveSensor.tiltX = Math.max(-1, Math.min(1, liveSensor.tiltX + flingVel.x * dt * 8));
+          liveSensor.tiltY = Math.max(-1, Math.min(1, liveSensor.tiltY + flingVel.y * dt * 8));
+        }
+        const tiltDx = liveSensor.tiltX - prevTiltX;
+        const tiltDy = liveSensor.tiltY - prevTiltY;
+        prevTiltX = liveSensor.tiltX;
+        prevTiltY = liveSensor.tiltY;
+        const scale = reduced ? 0.35 : 1;
+        impulse(tiltDy * 3.1 * scale, tiltDx * 3.1 * scale, 0);
+        impulse(flingVel.y * dt * 5 * scale, flingVel.x * dt * 6 * scale, 0);
+        if (liveSensor.loudness > 0.08) impulse(0, liveSensor.loudness * dt * 3.4 * scale, 0);
+        if (liveSensor.wave > 0.05) impulse(0, 0, liveSensor.wave * dt * 2.8 * scale);
+        if (toolTouch.stir) impulse(0, masterMix.stir * dt * 2.4 * scale, 0);
+        if (toolTouch.swirl) impulse(0, 0, masterMix.swirl * dt * 2.2 * scale);
+        stepSpin(dt * scale);
+      }
+      const stage = document.querySelector(".stage");
+      if (stage instanceof HTMLElement) {
+        const shown = shownColor(useBrew.getState().drops, useBrew.getState().vibe);
+        stage.dataset.hue = String(Math.round(shown.hue));
+        stage.dataset.spin = Math.hypot(spin.vx, spin.vy, spin.vz).toFixed(3);
+        stage.dataset.drops = String(useBrew.getState().drops.length);
+        stage.style.setProperty("--brew", shown.hex);
+        const ring = stage.querySelector(".brew-pulse");
+        if (ring instanceof HTMLElement) {
+          const left = pulse.until - Date.now();
+          if (left > 0) {
+            const t = 1 - left / Math.max(1, pulse.ms);
+            ring.style.opacity = String(Math.max(0, (1 - t) * 0.95));
+            ring.style.transform = `translate(-50%, -54%) scale(${0.65 + t * 2.5})`;
+            ring.style.borderColor = pulse.hex;
+          } else if (ring.style.opacity !== "0") {
+            ring.style.opacity = "0";
+          }
+        }
       }
       frame = requestAnimationFrame(tick);
     };
@@ -311,6 +361,7 @@ export function ConjureApp({
   useEffect(() => {
     if (!replay) return;
     useBrew.setState({ started: true, vibe: replay.vibe, form: replay.form, drops: [] });
+    if (replay.spin) restoreSpin(replay.spin);
     const source = replay.drops;
     if (!source.length) {
       useBrew.getState().setDrops([]);
@@ -319,9 +370,12 @@ export function ConjureApp({
     const start = Math.min(...source.map((drop) => drop.at));
     const span = Math.max(1, Math.max(...source.map((drop) => drop.at)) - start);
     let frame = 0;
+    let prevCycle = 0;
     const begun = performance.now();
     const loop = (now: number) => {
       const cycle = ((now - begun) % 6000) / 6000;
+      if (cycle < prevCycle && replay.spin) restoreSpin(replay.spin);
+      prevCycle = cycle;
       const visible = source
         .filter((drop) => (drop.at - start) / span <= cycle / 0.8)
         .map((drop) => ({ ...drop, at: Date.now() - 2000 }));
@@ -347,14 +401,28 @@ export function ConjureApp({
         void drop(INGREDIENTS[index].id);
       }
       if (event.key === "c") void capture();
-      if (event.key === "ArrowLeft") liveSensor.tiltX = Math.max(-1, liveSensor.tiltX - 0.2);
-      if (event.key === "ArrowRight") liveSensor.tiltX = Math.min(1, liveSensor.tiltX + 0.2);
-      if (event.key === "ArrowUp") liveSensor.tiltY = Math.max(-1, liveSensor.tiltY - 0.2);
-      if (event.key === "ArrowDown") liveSensor.tiltY = Math.min(1, liveSensor.tiltY + 0.2);
+      if (event.key === "ArrowLeft") {
+        liveSensor.tiltX = Math.max(-1, liveSensor.tiltX - 0.35);
+        impulse(0, -1.1, 0);
+      }
+      if (event.key === "ArrowRight") {
+        liveSensor.tiltX = Math.min(1, liveSensor.tiltX + 0.35);
+        impulse(0, 1.1, 0);
+      }
+      if (event.key === "ArrowUp") {
+        liveSensor.tiltY = Math.max(-1, liveSensor.tiltY - 0.35);
+        impulse(-1.1, 0, 0);
+      }
+      if (event.key === "ArrowDown") {
+        liveSensor.tiltY = Math.min(1, liveSensor.tiltY + 0.35);
+        impulse(1.1, 0, 0);
+      }
       if (event.key === " ") {
         event.preventDefault();
         liveSensor.burst = 1;
         liveSensor.shake = 1;
+        impulse(0.4, 1.6, 0.5);
+        burstSparks("#f6efe4", 8);
         burstSound();
       }
     };
@@ -375,19 +443,128 @@ export function ConjureApp({
     });
   }
 
+  function ensureLive() {
+    if (useBrew.getState().started) return;
+    unlockAudio();
+    useBrew.getState().start();
+    grant("start");
+  }
+
+  function hideControl(id: string) {
+    setRetired((list) => (list.includes(id) ? list : [...list, id]));
+    setTray(false);
+  }
+
+  function sparksOnce(color: string) {
+    const now = performance.now();
+    if (now - sparkAt.current < 140) return;
+    sparkAt.current = now;
+    burstSparks(color, 8);
+  }
+
+  function armSensor(next: "mic" | "camera" | "motion") {
+    ensureLive();
+    kindRef.current = next;
+    setKind(next);
+    grant("sensor");
+    patchFlags({ passedSensors: true, hintSensor: false });
+    if (next === "mic") {
+      liveSensor.loudness = 1;
+      liveSensor.burst = 1;
+      liveSensor.shake = 1;
+      burstSound();
+      punchColor("#f0b429", 42);
+      burstSparks("#f0b429", 12);
+      impulse(0.25, 2.9, 0.45);
+      window.setTimeout(() => {
+        if (liveSensor.loudness > 0.92) liveSensor.loudness = 0;
+      }, 900);
+      setNotice(t("mic.line2"));
+    }
+    if (next === "camera") {
+      liveSensor.wave = 1;
+      liveSensor.sampleHue = 196;
+      liveSensor.burst = 0.85;
+      const hex = hslToHex(196, 0.78, 0.52);
+      punchColor(hex, 196);
+      burstSparks(hex, 12);
+      impulse(0.35, 0.45, 2.5);
+      setNotice(t("cam.line2"));
+    }
+    if (next === "motion") {
+      liveSensor.tiltX = 0.82;
+      liveSensor.tiltY = -0.58;
+      liveSensor.shake = 1;
+      liveSensor.burst = 1;
+      punchColor("#c9b6ff", 268);
+      burstSparks("#c9b6ff", 12);
+      impulse(2.1, 2.2, 0.8);
+      setNotice(t("motion.line1"));
+    }
+    hideControl(`sensor:${next}`);
+  }
+
+  function onTool(id: "stir" | "hue" | "swirl" | "bloom" | "freeze", value: number) {
+    ensureLive();
+    if (id === "stir") {
+      toolTouch.stir = true;
+      impulse(0, 0.45 + value * 1.4, 0);
+      liveSensor.burst = Math.min(1, 0.35 + value);
+      sparksOnce("#e27a3a");
+    }
+    if (id === "hue") {
+      toolTouch.hue = true;
+      const hue = ((value % 360) + 360) % 360;
+      const hex = hslToHex(hue, 0.82, 0.52);
+      punchColor(hex, hue);
+      sparksOnce(hex);
+      impulse(0, 0.2, value / 90);
+    }
+    if (id === "swirl") {
+      toolTouch.swirl = true;
+      impulse(0, 0.25, 0.7 + value * 2.2);
+      sparksOnce("#7ee0d0");
+    }
+    if (id === "bloom") {
+      toolTouch.bloom = true;
+      liveSensor.burst = Math.min(1, 0.25 + value);
+      impulse(0.25, 0.45 + value * 0.8, 0.2);
+      sparksOnce("#fff1c9");
+    }
+    if (id === "freeze") {
+      toolTouch.freeze = true;
+      if (value) {
+        spin.vx = 0;
+        spin.vy = 0;
+        spin.vz = 0;
+        punchColor("#d5e6f2", 200);
+      } else {
+        impulse(0.45, 1.5, 0.35);
+        burstSparks("#f6efe4", 8);
+      }
+    }
+  }
+
   function say(message: string) {
     setLiveMsg("");
     setTimeout(() => setLiveMsg(message), 20);
   }
 
   async function drop(id: IngredientId) {
-    if (!useBrew.getState().started || spectating) return;
-    unlockAudio();
+    if (spectating) return;
+    ensureLive();
     const ing = ingredientById(id);
+    const hex = hslToHex(ing.hue, 0.84, 0.52);
+    punchColor(hex, ing.hue);
+    burstSparks(hex, 12);
+    liveSensor.burst = 1;
+    liveSensor.shake = 0.9;
+    impulse((ing.spikes - 0.3) * 2.6, 1.15 + ing.energy * 1.7, (ing.hue / 180 - 1) * 1.6);
     pluck(ing.hue, ing.energy);
     const made = useBrew.getState().addDrop(id, deviceRef.current);
     patchFlags({ usedIngredient: true, hintDrop: false });
     grant("drop");
+    hideControl(`ing:${id}`);
     say(`${ing.label} dropped in.`);
     if (roomCode) {
       try {
@@ -475,8 +652,17 @@ export function ConjureApp({
         recorder = null;
       }
     }
+    const motion = spinSnapshot();
+    rememberMotion(motion);
+    let earlyStill: string | null = null;
     for (let second = 6; second > 0; second -= 1) {
       useBrew.getState().setRecording(second);
+      if (second === 6) {
+        await sleep(350);
+        earlyStill = takeStill();
+        await sleep(650);
+        continue;
+      }
       await sleep(1000);
     }
     if (recorder && recorder.state !== "inactive") {
@@ -500,7 +686,8 @@ export function ConjureApp({
       drops: state.drops,
       contributors: credited,
       createdAt: Date.now(),
-      still: takeStill() ?? undefined,
+      still: earlyStill ?? takeStill() ?? undefined,
+      spin: motion,
     };
     const prior = sessionStorage.getItem("conjure.lineage");
     if (prior) {
@@ -618,6 +805,7 @@ export function ConjureApp({
       drops: state.drops,
       contributors: [{ id: deviceRef.current, name: state.name || "You", included: true }],
       createdAt: Date.now(),
+      spin: spinSnapshot(),
     };
     saveCreation(creation);
     setGallery(loadCreations());
@@ -662,7 +850,11 @@ export function ConjureApp({
         className="stage"
         onPointerDown={(event) => {
           if (sceneMoving({ started, reduced, frozen: masterMix.freeze })) {
-            event.currentTarget.setPointerCapture(event.pointerId);
+            try {
+              event.currentTarget.setPointerCapture(event.pointerId);
+            } catch {
+              /* synthetic pointers still stir */
+            }
             pointerDown(event.pointerId, event.clientX, event.clientY);
             haptic(8);
             return;
@@ -670,10 +862,20 @@ export function ConjureApp({
           dragging.current = true;
         }}
         onPointerUp={(event) => {
-          if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+          if (sceneMoving({ started, reduced, frozen: masterMix.freeze })) {
+            try {
+              if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+                event.currentTarget.releasePointerCapture(event.pointerId);
+              }
+            } catch {
+              /* ignore */
+            }
             const speed = pointerUp(event.pointerId);
             if (isFling(speed)) {
               haptic([12, 28, 18]);
+              impulse(flingVel.y * 1.8, flingVel.x * 2.2, 0);
+              flashPulse("#fff6df", 700);
+              burstSparks("#f6efe4", 10);
               grant("fling");
             }
             return;
@@ -688,14 +890,12 @@ export function ConjureApp({
           dragging.current = false;
         }}
         onPointerMove={(event) => {
-          if (
-            sceneMoving({ started, reduced, frozen: masterMix.freeze }) &&
-            event.currentTarget.hasPointerCapture?.(event.pointerId)
-          ) {
+          if (sceneMoving({ started, reduced, frozen: masterMix.freeze })) {
             const delta = pointerMove(event.pointerId, event.clientX, event.clientY);
             if (!delta) return;
             liveSensor.tiltX = Math.max(-1, Math.min(1, liveSensor.tiltX + delta.dx / 160));
             liveSensor.tiltY = Math.max(-1, Math.min(1, liveSensor.tiltY + delta.dy / 160));
+            impulse(delta.dy / 140, delta.dx / 120, 0);
             return;
           }
           if (!dragging.current || !started) return;
@@ -712,6 +912,7 @@ export function ConjureApp({
             </Suspense>
           </StageBoundary>
         )}
+        <div className="brew-pulse" aria-hidden="true" />
       </div>
 
       <header className="topbar">
@@ -734,6 +935,10 @@ export function ConjureApp({
                 if (roomCode && hostId !== deviceRef.current) return;
                 const next = VIBES[(VIBES.indexOf(vibe) + 1) % VIBES.length];
                 useBrew.getState().setVibe(next);
+                const preview = computeBrew(useBrew.getState().drops, blendSensors([liveSensor, remoteSensor]), next);
+                punchColor(preview.color, preview.hue);
+                burstSparks(preview.color, 10);
+                impulse(next === "spooky" ? 1.4 : 0.3, next === "chaotic" ? 2.4 : 1.1, 0.4);
                 if (roomCode) {
                   void roomCall({ op: "vibe", device: deviceRef.current, code: roomCode, vibe: next }).then((snap) => {
                     if ("members" in snap) useBrew.getState().applyRoom(snap);
@@ -850,8 +1055,32 @@ export function ConjureApp({
         </section>
       )}
 
+      {started && !replay && (
+        <button
+          type="button"
+          className="tray-toggle"
+          aria-pressed={tray}
+          aria-label={tray ? t("controls.hide") : t("controls.show")}
+          onClick={() => {
+            if (tray) setTray(false);
+            else {
+              setRetired([]);
+              setTray(true);
+            }
+          }}
+        >
+          <XeIcon emoji="👁️" />
+        </button>
+      )}
+
       <aside className="rail" aria-label="Ingredients">
-        <IngredientBar disabled={!started || spectating} onDrop={(id) => void drop(id)} />
+        {tray && (
+          <IngredientBar
+            disabled={spectating}
+            hidden={retired}
+            onDrop={(id) => void drop(id)}
+          />
+        )}
       </aside>
 
       <footer className="thumb">
@@ -872,13 +1101,37 @@ export function ConjureApp({
             </button>
           </div>
         )}
-        {showSensors && (
+        {tray && showSensors && (
           <div className="sensor-row">
-            <SensorButton emoji="🎤" label={t("sensor.mic")} on={kind === "mic"} onClick={() => setSheet("mic")} />
-            <SensorButton emoji="📷" label={t("sensor.camera")} on={kind === "camera"} onClick={() => setSheet("cam")} />
-            <SensorButton emoji="📱" label={t("sensor.motion")} on={kind === "motion"} onClick={() => setSheet("motion")} />
-            {!flags.passedSensors && (
-              <button type="button" className="chip" onClick={() => patchFlags({ passedSensors: true, hintSensor: false })}>
+            {!retired.includes("sensor:mic") && (
+              <SensorButton emoji="🎤" label={t("sensor.mic")} on={kind === "mic"} onClick={() => armSensor("mic")} />
+            )}
+            {!retired.includes("sensor:camera") && (
+              <SensorButton emoji="📷" label={t("sensor.camera")} on={kind === "camera"} onClick={() => armSensor("camera")} />
+            )}
+            {!retired.includes("sensor:motion") && (
+              <SensorButton emoji="📱" label={t("sensor.motion")} on={kind === "motion"} onClick={() => armSensor("motion")} />
+            )}
+            {!flags.passedSensors && !retired.includes("sensor:quiet") && (
+              <button
+                type="button"
+                className="chip"
+                onClick={() => {
+                  ensureLive();
+                  liveSensor.loudness = 0;
+                  liveSensor.burst = 0;
+                  liveSensor.wave = 0;
+                  impulse(0.35, 1.1, 0.4);
+                  spin.damping = 4.2;
+                  punchColor("#6f8f78", 150);
+                  burstSparks("#6f8f78", 6);
+                  window.setTimeout(() => {
+                    spin.damping = 1.7;
+                  }, 1200);
+                  patchFlags({ passedSensors: true, hintSensor: false });
+                  hideControl("sensor:quiet");
+                }}
+              >
                 {t("quiet")}
               </button>
             )}
@@ -888,18 +1141,48 @@ export function ConjureApp({
                 <span>{t("gather")}</span>
               </button>
             )}
-            {kind === "camera" && (
-              <button type="button" className="chip" onClick={() => sensors.sampleColor()}>
+            {kind === "camera" && !retired.includes("sensor:sample") && (
+              <button
+                type="button"
+                className="chip"
+                onClick={() => {
+                  sensors.sampleColor();
+                  const hue = liveSensor.sampleHue ?? 196;
+                  const hex = hslToHex(hue, 0.8, 0.5);
+                  punchColor(hex, hue);
+                  burstSparks(hex, 10);
+                  impulse(0.2, 0.4, 1.6);
+                  liveSensor.burst = 1;
+                  hideControl("sensor:sample");
+                }}
+              >
                 <XeIcon emoji="💧" />
                 <span>{t("sensor.sample")}</span>
               </button>
             )}
-            {kind && (
-              <button type="button" className="chip" onClick={() => setKind(null)}>
+            {kind && !retired.includes("sensor:stop") && (
+              <button
+                type="button"
+                className="chip"
+                onClick={() => {
+                  setKind(null);
+                  kindRef.current = null;
+                  liveSensor.loudness = 0;
+                  liveSensor.wave = 0;
+                  spin.damping = 3.2;
+                  window.setTimeout(() => {
+                    spin.damping = 1.7;
+                  }, 1000);
+                  hideControl("sensor:stop");
+                }}
+              >
                 {t("sensor.stop")}
               </button>
             )}
           </div>
+        )}
+        {tray && progress.level === "master" && !replay && (
+          <ToolDock hidden={retired} onLive={onTool} onRetire={hideControl} />
         )}
         <div className="legal">
           <button
@@ -927,10 +1210,16 @@ export function ConjureApp({
             {t("optIn")}
           </label>
         </div>
-        <div className="thumb-row">
-          <IngredientBar disabled={!started || spectating} onDrop={(id) => void drop(id)} />
-        </div>
-        {started && <p className="pot-count">{drops.length} {t("inPot")}</p>}
+        {tray && (
+          <div className="thumb-row">
+            <IngredientBar disabled={!started || spectating} hidden={retired} onDrop={(id) => void drop(id)} />
+          </div>
+        )}
+        {started && tray && (
+          <p className="pot-count">
+            {drops.length} {t("inPot")}
+          </p>
+        )}
       </footer>
 
       <aside className="panel">
@@ -1072,52 +1361,6 @@ export function ConjureApp({
           </p>
         )}
       </aside>
-
-      {sheet === "mic" && (
-        <PermissionSheet
-          emoji="🎤"
-          line1={t("mic.line1")}
-          line2={t("mic.line2")}
-          go={t("mic.go")}
-          onGo={() => {
-            setKind("mic");
-            grant("sensor");
-            setSheet(null);
-            patchFlags({ passedSensors: true, hintSensor: false });
-          }}
-          onClose={() => setSheet(null)}
-        />
-      )}
-      {sheet === "cam" && (
-        <PermissionSheet
-          emoji="📷"
-          line1={t("cam.line1")}
-          line2={t("cam.line2")}
-          go={t("cam.go")}
-          onGo={() => {
-            setKind("camera");
-            grant("sensor");
-            setSheet(null);
-            patchFlags({ passedSensors: true, hintSensor: false });
-          }}
-          onClose={() => setSheet(null)}
-        />
-      )}
-      {sheet === "motion" && (
-        <PermissionSheet
-          emoji="📱"
-          line1={t("motion.line1")}
-          line2={t("motion.line2")}
-          go={t("motion.go")}
-          onGo={() => {
-            setKind("motion");
-            grant("sensor");
-            setSheet(null);
-            patchFlags({ passedSensors: true, hintSensor: false });
-          }}
-          onClose={() => setSheet(null)}
-        />
-      )}
 
       {sheet === "gather" && (
         <section className="sheet" role="dialog" aria-modal="true" aria-label={t("room.title")}>
@@ -1284,6 +1527,13 @@ export function ConjureApp({
               </button>
             </header>
             {review.still && <img className="still" src={review.still} alt="" />}
+            {review.spin && (
+              <p className="muted">
+                {t("mint.velocity")} {review.spin.angularVelocity} · {t("mint.axis")}{" "}
+                {review.spin.axis.map((n) => n.toFixed(2)).join(", ")} · {t("mint.damping")} {review.spin.damping} ·{" "}
+                {t("mint.spins")} {review.spin.spinCount}
+              </p>
+            )}
             <div className="row wrap">
               <button type="button" className="emphasis" onClick={() => void shareCreation(review)}>
                 <XeIcon emoji="🔗" />
@@ -1389,21 +1639,28 @@ export function ConjureApp({
             <button
               type="button"
               onClick={() => {
-                const meta = {
-                  name: review.title,
-                  description: "A Conjure brew.",
-                  vibe: review.vibe,
-                  contributors: review.contributors,
-                  chainId: CHAIN.id,
-                  royaltyBps: CHAIN.royaltyBps,
-                };
-                const blob = new Blob([JSON.stringify(meta, null, 2)], { type: "application/json" });
-                const url = URL.createObjectURL(blob);
-                const anchor = document.createElement("a");
-                anchor.href = url;
-                anchor.download = `${review.id}-metadata.json`;
-                anchor.click();
-                URL.revokeObjectURL(url);
+                void (async () => {
+                  const blob = loops.current.get(review.id);
+                  let animationUrl = `${window.location.origin}/c/${review.id}`;
+                  if (blob) animationUrl = await blobToDataUrl(blob);
+                  else if (review.spin) animationUrl = `${window.location.origin}/c/${review.id}?d=${encodeCreation(review)}`;
+                  const meta = brewMetadata({
+                    title: review.title,
+                    animationUrl,
+                    image: review.still,
+                    spin: review.spin ?? null,
+                    vibe: review.vibe,
+                    chainId: CHAIN.id,
+                    royaltyBps: CHAIN.royaltyBps,
+                  });
+                  const file = new Blob([JSON.stringify(meta, null, 2)], { type: "application/json" });
+                  const url = URL.createObjectURL(file);
+                  const anchor = document.createElement("a");
+                  anchor.href = url;
+                  anchor.download = `${review.id}-metadata.json`;
+                  anchor.click();
+                  URL.revokeObjectURL(url);
+                })();
               }}
             >
               <XeIcon emoji="📋" />
@@ -1438,10 +1695,13 @@ export function ConjureApp({
           onClose={() => setSheet(null)}
           onWallet={() => setSheet("wallet")}
           onBoard={() => setSheet("board")}
-          onTools={() => setSheet("tools")}
+          onTools={() => {
+            setRetired((list) => list.filter((id) => !id.startsWith("tool:")));
+            setTray(true);
+            setSheet(null);
+          }}
         />
       )}
-      {sheet === "tools" && <MasterSheet onClose={() => setSheet(null)} />}
       {sheet === "wallet" && (
         <WalletSheet
           wallet={wallet}
@@ -1518,14 +1778,18 @@ export function ConjureApp({
 
 function IngredientBar({
   disabled,
+  hidden,
   onDrop,
 }: {
   disabled: boolean;
+  hidden: string[];
   onDrop: (id: IngredientId) => void;
 }) {
+  const items = INGREDIENTS.filter((item) => !hidden.includes(`ing:${item.id}`));
+  if (!items.length) return null;
   return (
     <div className="ings">
-      {INGREDIENTS.map((item) => (
+      {items.map((item) => (
         <button
           key={item.id}
           type="button"
@@ -1560,38 +1824,16 @@ function SensorButton({
   );
 }
 
-function PermissionSheet({
-  emoji,
-  line1,
-  line2,
-  go,
-  onGo,
-  onClose,
-}: {
-  emoji: string;
-  line1: string;
-  line2: string;
-  go: string;
-  onGo: () => void;
-  onClose: () => void;
-}) {
-  return (
-    <section className="sheet" role="dialog" aria-modal="true" aria-label={line1}>
-      <div className="sheet-card">
-        <XeIcon emoji={emoji} className="xe-lg" />
-        <p>{line1}</p>
-        <p>{line2}</p>
-        <div className="row">
-          <button type="button" className="emphasis" onClick={onGo}>
-            {go}
-          </button>
-          <button type="button" onClick={onClose}>
-            {t("close")}
-          </button>
-        </div>
-      </div>
-    </section>
-  );
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return blob.arrayBuffer().then((buffer) => {
+    const bytes = new Uint8Array(buffer);
+    let bin = "";
+    const size = 0x8000;
+    for (let i = 0; i < bytes.length; i += size) {
+      bin += String.fromCharCode(...bytes.subarray(i, i + size));
+    }
+    return `data:${blob.type || "video/webm"};base64,${btoa(bin)}`;
+  });
 }
 
 function MemberList({

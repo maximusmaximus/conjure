@@ -115,96 +115,128 @@ export function LevelSheet({
   );
 }
 
-export function MasterSheet({ onClose }: { onClose: () => void }) {
+export function ToolDock({
+  hidden,
+  onLive,
+  onRetire,
+}: {
+  hidden: string[];
+  onLive: (id: "stir" | "hue" | "swirl" | "bloom" | "freeze", value: number) => void;
+  onRetire: (id: string) => void;
+}) {
   const [stir, setStir] = useState(masterMix.stir);
   const [hue, setHue] = useState(masterMix.hue);
   const [swirl, setSwirl] = useState(masterMix.swirl);
   const [bloom, setBloom] = useState(masterMix.bloom);
   const [freeze, setFreeze] = useState(masterMix.freeze);
+  const tools = [
+    { id: "tool:stir", label: t("tools.stir") },
+    { id: "tool:hue", label: t("tools.hue") },
+    { id: "tool:swirl", label: t("tools.swirl") },
+    { id: "tool:bloom", label: t("tools.bloom") },
+    { id: "tool:freeze", label: t("tools.freeze") },
+  ].filter((tool) => !hidden.includes(tool.id));
+  if (!tools.length) return null;
   return (
-    <section className="sheet" role="dialog" aria-modal="true" aria-label={t("tools.title")}>
-      <div className="sheet-card">
-        <div className="row">
-          <h2>{t("tools.title")}</h2>
-          <button type="button" className="icon-btn" aria-label={t("close")} onClick={onClose}>
-            <XeIcon emoji="✖️" />
-          </button>
-        </div>
-        <p className="muted">{t("tools.body")}</p>
+    <div className="tool-dock">
+      {tools.some((tool) => tool.id === "tool:stir") && (
         <label>
           {t("tools.stir")}
           <input
+            data-tool="stir"
             type="range"
             min={0}
             max={1}
             step={0.05}
             value={stir}
-            onChange={(event) => {
-              const value = Number(event.target.value);
+            onInput={(event) => {
+              const value = Number((event.target as HTMLInputElement).value);
               setStir(value);
               masterMix.stir = value;
+              onLive("stir", value);
             }}
+            onPointerUp={() => onRetire("tool:stir")}
           />
         </label>
+      )}
+      {tools.some((tool) => tool.id === "tool:hue") && (
         <label>
           {t("tools.hue")}
           <input
+            data-tool="hue"
             type="range"
-            min={-40}
-            max={40}
-            step={1}
+            min={-160}
+            max={160}
+            step={2}
             value={hue}
-            onChange={(event) => {
-              const value = Number(event.target.value);
+            onInput={(event) => {
+              const value = Number((event.target as HTMLInputElement).value);
               setHue(value);
               masterMix.hue = value;
+              onLive("hue", value);
             }}
+            onPointerUp={() => onRetire("tool:hue")}
           />
         </label>
+      )}
+      {tools.some((tool) => tool.id === "tool:swirl") && (
         <label>
           {t("tools.swirl")}
           <input
+            data-tool="swirl"
             type="range"
             min={0}
             max={1}
             step={0.05}
             value={swirl}
-            onChange={(event) => {
-              const value = Number(event.target.value);
+            onInput={(event) => {
+              const value = Number((event.target as HTMLInputElement).value);
               setSwirl(value);
               masterMix.swirl = value;
+              onLive("swirl", value);
             }}
+            onPointerUp={() => onRetire("tool:swirl")}
           />
         </label>
+      )}
+      {tools.some((tool) => tool.id === "tool:bloom") && (
         <label>
           {t("tools.bloom")}
           <input
+            data-tool="bloom"
             type="range"
             min={0}
             max={1}
             step={0.05}
             value={bloom}
-            onChange={(event) => {
-              const value = Number(event.target.value);
+            onInput={(event) => {
+              const value = Number((event.target as HTMLInputElement).value);
               setBloom(value);
               masterMix.bloom = value;
+              onLive("bloom", value);
             }}
+            onPointerUp={() => onRetire("tool:bloom")}
           />
         </label>
+      )}
+      {tools.some((tool) => tool.id === "tool:freeze") && (
         <button
           type="button"
+          data-tool="freeze"
           className={freeze ? "chip on" : "chip"}
           onClick={() => {
             const next = !freeze;
             setFreeze(next);
             masterMix.freeze = next;
+            onLive("freeze", next ? 1 : 0);
+            onRetire("tool:freeze");
           }}
         >
           <XeIcon emoji="❄️" />
           <span>{freeze ? t("tools.thaw") : t("tools.freeze")}</span>
         </button>
-      </div>
-    </section>
+      )}
+    </div>
   );
 }
 

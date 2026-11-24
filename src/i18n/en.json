@@ -11,6 +11,10 @@
   },
   "vibe": { "label": "Vibe", "calm": "Calm", "chaotic": "Chaotic", "spooky": "Spooky" },
   "quiet": "Keep it quiet",
+  "controls": {
+    "show": "Show controls",
+    "hide": "Hide controls"
+  },
   "gather": "Gather",
   "capture": "Capture",
   "share": "Share",
@@ -72,7 +76,11 @@
     "noContract": "No collection contract is configured.",
     "meta": "Download metadata",
     "cap": "Daily mint cap reached.",
-    "sent": "Mint submitted."
+    "sent": "Mint submitted.",
+    "velocity": "Angular velocity",
+    "axis": "Axis",
+    "damping": "Damping",
+    "spins": "Spin count"
   },
   "room": {
     "title": "One cauldron",

@@ -1,4 +1,5 @@
 import type { Drop, FormId, Vibe } from "./brew";
+import type { SpinNote } from "./spin";
 
 export type Contributor = {
   id: string;
@@ -17,6 +18,7 @@ export type Creation = {
   remixTitle?: string;
   createdAt: number;
   still?: string;
+  spin?: SpinNote;
 };
 
 const KEY = "conjure.creations.v1";

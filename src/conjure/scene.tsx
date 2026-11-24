@@ -1,16 +1,10 @@
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import {
-  computeBrew,
-  decaySensor,
-  type Drop,
-  type FormId,
-  type Vibe,
-} from "./brew";
-import { liveSensor, masterMix, remoteSensor, setEnterAR, setExportGlb, setGrabStill } from "./live";
+import { computeBrew, blendSensors, decaySensor, hslToHex, ingredientById, type Drop, type FormId, type Vibe } from "./brew";
+import { liveSensor, masterMix, punch, punchStrength, remoteSensor, setEnterAR, setExportGlb, setGrabStill, sparks, toolTouch } from "./live";
 import { flingVel } from "./fling";
-import { blendSensors } from "./brew";
+import { rememberedMotion, spin, spinFrames, spinSnapshot } from "./spin";
 import type { Quality } from "./quality";
 
 const potPoints = (() => {
@@ -76,6 +70,10 @@ function BrewMesh({
   const liquid = useRef<THREE.ShaderMaterial>(null);
   const skin = useRef<THREE.ShaderMaterial>(null);
   const orb = useRef<THREE.Group>(null);
+  const pot = useRef<THREE.Group>(null);
+  const brewGroup = useRef<THREE.Group>(null);
+  const glow = useRef<THREE.PointLight>(null);
+  const flash = useRef(new THREE.Color("#e27a3a"));
   const formRef = form;
   const liquidUniforms = useMemo(
     () => ({
@@ -98,72 +96,99 @@ function BrewMesh({
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.1);
     const brew = mixNow(drops, vibe);
-    const speed = masterMix.freeze ? 0 : reduced ? 0.15 : 1 + masterMix.stir;
+    const stir = toolTouch.stir ? masterMix.stir : 0.12;
+    const swirl = toolTouch.swirl ? masterMix.swirl : 0.15;
+    const bloom = toolTouch.bloom ? masterMix.bloom : 0.28;
+    const speed = masterMix.freeze ? 0 : reduced ? 0.12 : 0.3 + stir * 3.6;
     liquidUniforms.uTime.value += dt * speed;
     skinUniforms.uTime.value += dt * speed;
-    liquidUniforms.uColor.value.set(brew.color);
-    skinUniforms.uColor.value.set(brew.color);
-    if (masterMix.hue) {
-      liquidUniforms.uColor.value.offsetHSL(masterMix.hue / 360, 0, 0);
-      skinUniforms.uColor.value.offsetHSL(masterMix.hue / 360, 0, 0);
+    const last = [...drops].reverse().find((drop) => !drop.neutral);
+    const shift = toolTouch.hue ? masterMix.hue : 0;
+    const baseHue = ((last ? ingredientById(last.ingredient).hue : brew.hue) + shift + 360) % 360;
+    const baseHex = hslToHex(baseHue, last ? 0.82 : Math.max(brew.saturation, 0.55), last ? 0.52 : Math.max(brew.lightness, 0.42));
+    liquidUniforms.uColor.value.set(baseHex);
+    skinUniforms.uColor.value.set(baseHex);
+    const flashT = punchStrength();
+    if (flashT > 0) {
+      flash.current.set(punch.hex);
+      liquidUniforms.uColor.value.lerp(flash.current, flashT);
+      skinUniforms.uColor.value.lerp(flash.current, flashT);
     }
-    liquidUniforms.uEnergy.value = brew.energy * (masterMix.freeze ? 0.35 : 1);
-    skinUniforms.uSpikes.value = brew.spikes * (0.55 + masterMix.swirl);
-    skinUniforms.uGlow.value = brew.glow * (0.45 + masterMix.bloom * 1.4);
+    liquidUniforms.uEnergy.value = brew.energy * (masterMix.freeze ? 0.2 : 0.6 + stir);
+    skinUniforms.uSpikes.value = brew.spikes * (0.4 + swirl * 1.4);
+    skinUniforms.uGlow.value = brew.glow * (0.35 + bloom * 1.8);
     if (orb.current) {
-      const swirl = masterMix.freeze ? 0 : (reduced ? 0.12 : brew.swirl) * (0.35 + masterMix.swirl * 1.6);
-      orb.current.rotation.y += dt * swirl;
-      orb.current.rotation.z = liveSensor.tiltX * 0.35 + remoteSensor.tiltX * 0.2;
-      orb.current.rotation.x = 0.2 + liveSensor.tiltY * 0.25;
-      const s = brew.scale * (1 + liveSensor.burst * 0.12);
-      orb.current.scale.setScalar(s);
-      const bob = Math.sin(skinUniforms.uTime.value * 1.4) * (reduced || masterMix.freeze ? 0.01 : 0.06);
+      const bloomMul = toolTouch.bloom ? 0.5 + masterMix.bloom * 1.7 : 0.7 + bloom * 0.95;
+      const s = brew.scale * (1 + liveSensor.burst * 0.55) * bloomMul;
+      orb.current.scale.setScalar(masterMix.freeze ? s * 0.92 : s);
+      const bob = Math.sin(skinUniforms.uTime.value * (1.2 + stir * 3)) * (reduced || masterMix.freeze ? 0.01 : 0.08 + stir * 0.05);
       orb.current.position.set(
         masterMix.freeze ? 0 : flingVel.x * 0.55,
         1.62 + bob,
         masterMix.freeze ? 0 : flingVel.y * 0.32,
       );
     }
+    const leanX = masterMix.freeze ? 0 : liveSensor.tiltY * 0.7 + remoteSensor.tiltY * 0.2;
+    const leanZ = masterMix.freeze ? 0 : liveSensor.tiltX * 0.7 + remoteSensor.tiltX * 0.2;
+    if (glow.current) {
+      glow.current.color.copy(liquidUniforms.uColor.value);
+      glow.current.intensity = masterMix.freeze ? 6 : 16 + flashT * 36;
+    }
+    if (brewGroup.current) {
+      brewGroup.current.rotation.set(spin.x + leanX, spin.y, spin.z + leanZ);
+    }
+    if (pot.current && !masterMix.freeze) {
+      pot.current.rotation.y = spin.y;
+      pot.current.rotation.z = Math.sin(spin.z) * 0.12 + leanZ * 0.25;
+    }
   });
 
   return (
     <group>
-      <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[1.35, 40]} />
-        <meshStandardMaterial color="#3a2e28" roughness={1} />
-      </mesh>
-      <mesh position={[0, 0, 0]} castShadow={false}>
-        <latheGeometry args={[potPoints, detail >= 5 ? 64 : 40]} />
-        <meshStandardMaterial color="#8d6b52" roughness={0.62} metalness={0.28} />
-      </mesh>
-      <mesh position={[0, 1.02, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.98, 0.055, 12, 40]} />
-        <meshStandardMaterial color="#e0b07a" roughness={0.35} metalness={0.6} />
-      </mesh>
-      {[0, 2, 4].map((k) => (
-        <mesh
-          key={k}
-          position={[Math.cos((k / 6) * Math.PI * 2) * 0.62, 0.16, Math.sin((k / 6) * Math.PI * 2) * 0.62]}
-        >
-          <cylinderGeometry args={[0.06, 0.08, 0.32, 8]} />
-          <meshStandardMaterial color="#241910" roughness={0.9} />
+      <pointLight ref={glow} position={[0, 1.7, 0.6]} intensity={16} distance={9} />
+      <group ref={pot}>
+        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[1.35, 40]} />
+          <meshStandardMaterial color="#3a2e28" roughness={1} />
         </mesh>
-      ))}
-      <mesh position={[0, 0.72, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.78, 48]} />
-        <shaderMaterial
-          ref={liquid}
-          transparent
-          uniforms={liquidUniforms}
-          vertexShader={liquidVert}
-          fragmentShader={liquidFrag}
-        />
-      </mesh>
-      <group ref={orb} position={[0, 1.62, 0]}>
-        <FormMesh form={formRef} uniforms={skinUniforms} detail={detail} />
+        <mesh position={[0, 0, 0]} castShadow={false}>
+          <latheGeometry args={[potPoints, detail >= 5 ? 64 : 40]} />
+          <meshStandardMaterial color="#8d6b52" roughness={0.62} metalness={0.28} />
+        </mesh>
+        <mesh position={[0, 1.02, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.98, 0.055, 12, 40]} />
+          <meshStandardMaterial color="#e0b07a" roughness={0.35} metalness={0.6} />
+        </mesh>
+        {[0, 2, 4].map((k) => (
+          <mesh
+            key={k}
+            position={[Math.cos((k / 6) * Math.PI * 2) * 0.62, 0.16, Math.sin((k / 6) * Math.PI * 2) * 0.62]}
+          >
+            <cylinderGeometry args={[0.06, 0.08, 0.32, 8]} />
+            <meshStandardMaterial color="#241910" roughness={0.9} />
+          </mesh>
+        ))}
       </group>
-      <Embers drops={drops} vibe={vibe} count={particles} />
-      <Falls drops={drops} />
+      <group name="brew" ref={brewGroup}>
+        <mesh position={[0, 0.72, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[0.78, 48]} />
+          <shaderMaterial
+            ref={liquid}
+            transparent
+            uniforms={liquidUniforms}
+            vertexShader={liquidVert}
+            fragmentShader={liquidFrag}
+          />
+        </mesh>
+        <group ref={orb} position={[0, 1.62, 0]}>
+          <FormMesh form={formRef} uniforms={skinUniforms} detail={detail} />
+        </group>
+        <Embers drops={drops} vibe={vibe} count={particles} />
+        <Falls drops={drops} />
+        <Sparks />
+        <Charms drops={drops} />
+        <Ladle />
+      </group>
     </group>
   );
 }
@@ -308,9 +333,12 @@ function Embers({ drops, vibe, count }: { drops: Drop[]; vibe: Vibe; count: numb
     }
     attr.needsUpdate = true;
     if (ref.current) {
-      (ref.current.material as THREE.PointsMaterial).color.set(brew.color);
-      (ref.current.material as THREE.PointsMaterial).size =
-        (0.035 + brew.glow * 0.02) * (0.65 + masterMix.bloom);
+      const last = [...drops].reverse().find((drop) => !drop.neutral);
+      (ref.current.material as THREE.PointsMaterial).color.set(
+        last ? hslToHex(ingredientById(last.ingredient).hue, 0.85, 0.55) : brew.color,
+      );
+      const bloom = toolTouch.bloom ? masterMix.bloom : 0.28;
+      (ref.current.material as THREE.PointsMaterial).size = (0.06 + brew.glow * 0.05) * (0.35 + bloom * 2.2);
     }
   });
 
@@ -335,6 +363,7 @@ function Embers({ drops, vibe, count }: { drops: Drop[]; vibe: Vibe; count: numb
 function Falls({ drops }: { drops: Drop[] }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
+  const tint = useMemo(() => new THREE.Color(), []);
   useFrame(() => {
     const mesh = ref.current;
     if (!mesh) return;
@@ -342,28 +371,130 @@ function Falls({ drops }: { drops: Drop[] }) {
     let shown = 0;
     for (const drop of drops) {
       const age = (now - drop.at) / 1000;
-      if (age < 0 || age > 1.15 || shown >= 8) continue;
-      const t = age / 1.15;
+      if (age < 0 || age > 1.8 || shown >= 8) continue;
+      const t = age / 1.8;
       const ease = 1 - (1 - t) * (1 - t);
-      dummy.position.set(((shown % 3) - 1) * 0.18, 2.3 - ease * 1.7, 0.1);
-      dummy.scale.setScalar(1 - t * 0.4);
+      const spinA = drop.at * 0.001 + t * 2.4;
+      dummy.position.set(Math.cos(spinA) * 0.28, 2.45 - ease * 1.7, Math.sin(spinA) * 0.28);
+      dummy.scale.setScalar(1.35 - t * 0.7);
+      dummy.rotation.set(spinA, spinA * 0.6, 0);
       dummy.updateMatrix();
       mesh.setMatrixAt(shown, dummy.matrix);
+      tint.set(hslToHex(ingredientById(drop.ingredient).hue, 0.85, 0.55));
+      mesh.setColorAt(shown, tint);
       shown += 1;
     }
     for (let i = shown; i < 8; i += 1) {
-      dummy.position.set(0, -5, 0);
+      dummy.position.set(0, -8, 0);
       dummy.scale.setScalar(0.001);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+      mesh.setColorAt(i, tint);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  });
+  return (
+    <instancedMesh ref={ref} args={[undefined, undefined, 8]}>
+      <sphereGeometry args={[0.16, 16, 12]} />
+      <meshBasicMaterial color="#ffffff" />
+    </instancedMesh>
+  );
+}
+
+function Sparks() {
+  const ref = useRef<THREE.InstancedMesh>(null);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const tint = useMemo(() => new THREE.Color("#ffffff"), []);
+  useFrame(() => {
+    const mesh = ref.current;
+    if (!mesh) return;
+    const now = Date.now();
+    for (let i = 0; i < 32; i += 1) {
+      const spark = sparks[i];
+      const age = spark ? (now - spark.at) / 1000 : 99;
+      if (!spark || age < 0 || age > 1.35) {
+        dummy.position.set(0, -8, 0);
+        dummy.scale.setScalar(0.001);
+      } else {
+        const t = age / 1.35;
+        const radius = 0.25 + t * 1.15;
+        dummy.position.set(
+          Math.cos(spark.angle + t * 4.5) * radius,
+          1.15 + Math.sin(t * Math.PI) * 1.35,
+          Math.sin(spark.angle + t * 4.5) * radius,
+        );
+        dummy.scale.setScalar(1 - t);
+        dummy.rotation.set(t * 6, spark.angle, 0);
+        tint.set(spark.color);
+        mesh.setColorAt(i, tint);
+      }
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
     }
     mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   });
   return (
-    <instancedMesh ref={ref} args={[undefined, undefined, 8]}>
-      <sphereGeometry args={[0.09, 12, 10]} />
-      <meshStandardMaterial color="#f6efe4" emissive="#e27a3a" emissiveIntensity={0.4} />
+    <instancedMesh ref={ref} args={[undefined, undefined, 32]}>
+      <octahedronGeometry args={[0.16, 0]} />
+      <meshBasicMaterial color="#ffffff" />
     </instancedMesh>
+  );
+}
+
+function Ladle() {
+  return (
+    <group>
+      <mesh position={[0.95, 1.35, 0]} rotation={[0, 0, -0.9]}>
+        <cylinderGeometry args={[0.045, 0.055, 1.2, 10]} />
+        <meshStandardMaterial color="#f3e2b8" metalness={0.55} roughness={0.32} />
+      </mesh>
+      <mesh position={[1.45, 1.78, 0]}>
+        <sphereGeometry args={[0.22, 18, 14]} />
+        <meshStandardMaterial color="#fff8e8" emissive="#ffb15a" emissiveIntensity={0.7} metalness={0.3} roughness={0.22} />
+      </mesh>
+      <mesh position={[1.02, 1.08, 0]}>
+        <boxGeometry args={[0.26, 0.09, 0.12]} />
+        <meshStandardMaterial color="#fff6df" emissive="#ffe29a" emissiveIntensity={1.4} />
+      </mesh>
+    </group>
+  );
+}
+
+function Charms({ drops }: { drops: Drop[] }) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    const group = ref.current;
+    if (!group) return;
+    const t = clock.elapsedTime;
+    const live = drops.slice(-8);
+    for (let i = 0; i < 8; i += 1) {
+      const mesh = group.children[i] as THREE.Mesh;
+      const drop = live[i];
+      if (!drop) {
+        mesh.visible = false;
+        continue;
+      }
+      mesh.visible = true;
+      const hue = ingredientById(drop.ingredient).hue;
+      (mesh.material as THREE.MeshBasicMaterial).color.set(hslToHex(hue, 0.9, 0.58));
+      const a = t * 0.9 + i * 0.95;
+      const r = 1.08 + (i % 3) * 0.18;
+      mesh.position.set(Math.cos(a) * r, 1.5 + Math.sin(t * 2.2 + i) * 0.24, Math.sin(a) * r);
+      mesh.rotation.set(a, a * 0.6, 0);
+      mesh.scale.setScalar(0.9 + (i % 2) * 0.35);
+    }
+  });
+  return (
+    <group ref={ref}>
+      {Array.from({ length: 8 }, (_, i) => (
+        <mesh key={i} visible={false}>
+          <octahedronGeometry args={[0.2, 0]} />
+          <meshBasicMaterial color="#ffffff" />
+        </mesh>
+      ))}
+    </group>
   );
 }
 
@@ -379,9 +510,32 @@ function Bridges({ root }: { root: RefObject<THREE.Group | null> }) {
     });
     setExportGlb(async () => {
       if (!root.current) return null;
+      const motion = rememberedMotion() ?? spinSnapshot();
+      root.current.userData = {
+        conjure: {
+          angularVelocity: motion.angularVelocity,
+          axis: motion.axis,
+          damping: motion.damping,
+          spinCount: motion.spinCount,
+        },
+      };
+      const frames = spinFrames(motion, 6, 36);
+      const times: number[] = [];
+      const values: number[] = [];
+      const euler = new THREE.Euler();
+      const quat = new THREE.Quaternion();
+      for (const frame of frames) {
+        times.push(frame.t);
+        euler.set(frame.x, frame.y, frame.z);
+        quat.setFromEuler(euler);
+        values.push(quat.x, quat.y, quat.z, quat.w);
+      }
+      const clip = new THREE.AnimationClip("conjure-spin", 6, [
+        new THREE.QuaternionKeyframeTrack("brew.quaternion", times, values),
+      ]);
       const { GLTFExporter } = await import("three/examples/jsm/exporters/GLTFExporter.js");
       const exporter = new GLTFExporter();
-      const bin = await exporter.parseAsync(root.current, { binary: true });
+      const bin = await exporter.parseAsync(root.current, { binary: true, animations: [clip] });
       return new Blob([bin as ArrayBuffer], { type: "model/gltf-binary" });
     });
     setEnterAR(async () => {
@@ -478,7 +632,7 @@ export function CauldronScene({
     <Canvas
       dpr={quality.dpr}
       camera={{ position: [0, 1.65, 4.55], fov: 36 }}
-      gl={{ antialias: quality.tier !== "low", alpha: false, powerPreference: "high-performance" }}
+      gl={{ antialias: quality.tier !== "low", alpha: false, powerPreference: "high-performance", preserveDrawingBuffer: true }}
       onCreated={({ gl, camera }) => {
         gl.setClearColor("#110e0c", 1);
         camera.lookAt(0, 1.15, 0);

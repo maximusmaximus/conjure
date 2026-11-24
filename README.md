@@ -6,12 +6,13 @@ Xero Emoji by Max Infeld, CC BY 4.0 — https://github.com/maximusmaximus/xeroem
 
 ## Try it
 
-1. Tap **Start**.
-2. Drop Ember, Moss, Moon, Salt, Honey, Frost, Ink, or Spark. Keys 1–8 do the same.
-3. Drag the moving brew and let go to fling it. A phone that supports vibration gives a short haptic tick.
-4. After the first drop, open **Mic**, **Camera**, or **Motion**. Only levels leave the phone.
-5. Tap **Capture** for a still, a 6 second loop, and a recipe. **Share** copies a replay link. **Remix** keeps the lineage.
-6. **Gather** opens a four-character code. Up to 12 players join. Others can watch. The host can lock, remove, or hand off the room. A capture asks each guest Include me / Leave me out. Silence leaves them out.
+1. Tap **Start**, or drop an ingredient. The first drop opens the cauldron.
+2. Drop Ember, Moss, Moon, Salt, Honey, Frost, Ink, or Spark. Keys 1–8 do the same. The brew takes that color, a charm stays in orbit, sparks fly, the ladle takes a spin, and you hear a tone. That button then leaves the stage.
+3. Drag the brew and let go to fling it. The ladle, the charms, and the pot take on angular velocity and ease back to rest. A phone that supports vibration ticks on the grab and on the throw.
+4. Tap the eye to bring the controls back. **Mic**, **Camera**, and **Motion** each kick the brew the moment you tap them: a swell, a color, and a spin. If the phone allows it, loudness, a color sample, and tilt keep feeding that motion. Only levels leave the phone. A used sensor button leaves with the rest of the tray.
+5. At **Master**, the eye also brings **Stir**, **Hue**, **Swirl**, **Bloom**, and **Freeze**. Each one changes the brew while you drag it. Freeze stops the spin. Letting go of a tool puts that slider away.
+6. Tap **Capture** for a still, a 6 second loop, and a recipe. The still is taken while the brew is still turning. The loop is the canvas for those 6 seconds, spin included. The GLB stores that same ease-out as an animation, plus the angular velocity, axis, damping, and spin count. **Share** copies a replay link that plays the spin again. **Remix** keeps the lineage.
+7. **Gather** opens a four-character code. Up to 12 players join. Others can watch. The host can lock, remove, or hand off the room. A capture asks each guest Include me / Leave me out. Silence leaves them out.
 
 ![Cauldron on a laptop](screenshots/layout-desktop-wait.png)
 
@@ -31,7 +32,9 @@ Use earns XP, a daily streak, and badges. The same action only counts a few time
 
 **Next** stays on screen and names the following action. Short tips explain a step once. Dismiss a tip with X or a sideways swipe. A dismissed tip does not return on this device.
 
-**Master** raises the drawing buffer to the screen's device pixel ratio, capped by `MAX_TEXTURE_SIZE` and an 8 megapixel budget, and never above 3. Tools add stir, hue, swirl, bloom, and freeze. The mesh and ember count step up with that tier.
+**Master** raises the drawing buffer to the screen's device pixel ratio, capped by `MAX_TEXTURE_SIZE` and an 8 megapixel budget, and never above 3. Tools are stir, hue, swirl, bloom, and freeze. They sit on the stage, not over it, and each one moves or recolors the brew as you use it. The mesh and ember count step up with that tier.
+
+The eye control is a Xero Emoji. It is the only control that stays after you have used the others. Open it and the ingredients, sensors, and tools come back. Close it and the stage is just the cauldron.
 
 ## Wallet
 
@@ -40,6 +43,8 @@ Robinhood Chain testnet only. Chain id **46630**. Public RPC `https://rpc.testne
 Connect the wallet already in the browser. You pay gas. The app does not hold a relayer key and does not switch the wallet to mainnet.
 
 `CHAIN.contract` in `src/conjure/chain.ts` is a public constant. It is empty in this build, so mint and transfer do not submit a transaction. When that constant is a contract address, mint calls `mint(address,string)` and transfer calls ERC-721 `transferFrom`, signed in the connected wallet through viem. Reads use a wagmi public client on the same testnet. Owned token ids come from `Transfer` logs. Local mint notes stay on this device.
+
+Mint metadata is a JSON file you can download from the capture. `animation_url` is the 6 second loop (a `data:video/webm` URL when the recording succeeded, otherwise the replay link that plays the same spin). `attributes` include angular velocity, axis, damping, and spin count. The still is the image. Robinhood Chain testnet only.
 
 Daily mint touches are capped at 5 per device.
 
