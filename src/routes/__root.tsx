@@ -37,6 +37,12 @@ export const Route = createRootRoute({
         <AuthProvider>
           <Outlet />
         </AuthProvider>
+        <p className="made-in">
+          made with ❤️ in SF by{" "}
+          <a href="https://maxi.grok.me" target="_blank" rel="noopener noreferrer">
+            maxi.grok.me
+          </a>
+        </p>
         <Scripts />
       </body>
     </html>
