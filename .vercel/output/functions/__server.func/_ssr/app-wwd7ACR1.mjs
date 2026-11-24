@@ -1,12 +1,12 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { ot as require_jsx_runtime, st as require_react } from "../_libs/@react-three/drei+[...].mjs";
 import { y as Link } from "../_libs/@tanstack/react-router+[...].mjs";
-import { _ as cleanName, a as cleanHandle, c as emptyProgress, d as loadProgress, f as nextStepId, g as xpToNext, h as walletUnlocked, i as award, l as loadBoardPrefs, m as saveProgress, o as currentTip, p as saveBoardPrefs, r as LEVELS, s as dismissTip, u as loadDismissedTips, v as resolveVotes } from "./router-CYX8YvgB.mjs";
+import { _ as cleanName, a as cleanHandle, c as emptyProgress, d as loadProgress, f as nextStepId, g as xpToNext, h as walletUnlocked, i as award, l as loadBoardPrefs, m as saveProgress, o as currentTip, p as saveBoardPrefs, r as LEVELS, s as dismissTip, u as loadDismissedTips, v as resolveVotes } from "./router-DBCbc0FE.mjs";
 import { t as require_xeroemoji } from "../_libs/xeroemoji.mjs";
 import { Ht as parseAbiItem, n as getPublicClient, pn as erc721Abi, t as createConfig } from "../_libs/@wagmi/core+[...].mjs";
 import { i as defineChain, n as custom, r as createWalletClient, t as http } from "../_libs/viem.mjs";
 import { t as create } from "../_libs/zustand.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/app-DAlAXD0B.js
+//#region node_modules/.nitro/vite/services/ssr/assets/app-wwd7ACR1.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var import_xeroemoji = require_xeroemoji();
@@ -248,6 +248,24 @@ function decaySensor(sensor, dt) {
 	if (sensor.burst < .01) sensor.burst = 0;
 	if (sensor.shake < .01) sensor.shake = 0;
 	if (sensor.wave < .01) sensor.wave = 0;
+}
+/** While device motion is writing absolute tilt, don't fight it. */
+var tiltHold = 0;
+function holdDeviceTilt(seconds = .45) {
+	if (seconds > tiltHold) tiltHold = seconds;
+}
+/** Finger leans and throw leans return to upright. Device tilt is left alone while it reports. */
+function springTilt(sensor, dt) {
+	const step = Math.min(Math.max(dt, 0), .1);
+	if (tiltHold > 0) {
+		tiltHold = Math.max(0, tiltHold - step);
+		return;
+	}
+	const tiltK = Math.exp(-step * 3.1);
+	sensor.tiltX *= tiltK;
+	sensor.tiltY *= tiltK;
+	if (Math.abs(sensor.tiltX) < .01) sensor.tiltX = 0;
+	if (Math.abs(sensor.tiltY) < .01) sensor.tiltY = 0;
 }
 /** Frame-rate sensor values. Mutated in place so the canvas does not re-render. */
 var liveSensor = emptySensor();
@@ -2564,6 +2582,7 @@ function useSensors(kind, onError) {
 					if (gravity) {
 						liveSensor.tiltX = Math.max(-1, Math.min(1, (gravity.x ?? 0) / 9));
 						liveSensor.tiltY = Math.max(-1, Math.min(1, (gravity.y ?? 0) / 12));
+						holdDeviceTilt();
 					}
 					const acc = event.acceleration;
 					if (Math.hypot(acc?.x ?? 0, acc?.y ?? 0, acc?.z ?? 0) > 16) liveSensor.shake = 1;
@@ -2654,7 +2673,7 @@ var useBrew = create((set, get) => ({
 	setNotice: (notice) => set({ notice }),
 	setRecording: (recording) => set({ recording })
 }));
-var CauldronScene = (0, import_react.lazy)(() => import("./scene-DhshJ5Gb.mjs").then((mod) => ({ default: mod.CauldronScene })));
+var CauldronScene = (0, import_react.lazy)(() => import("./scene-nwoVXmFv.mjs").then((mod) => ({ default: mod.CauldronScene })));
 var StageBoundary = class extends import_react.Component {
 	state = { bad: false };
 	static getDerivedStateFromError() {
@@ -2842,6 +2861,9 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 				if (toolTouch.swirl) impulse(0, 0, masterMix.swirl * dt * 2.2 * scale);
 				stepSpin(dt * scale);
 			}
+			springTilt(liveSensor, dt);
+			prevTiltX = liveSensor.tiltX;
+			prevTiltY = liveSensor.tiltY;
 			const stage = document.querySelector(".stage");
 			if (stage instanceof HTMLElement) {
 				const shown = shownColor(useBrew.getState().drops, useBrew.getState().vibe);
@@ -3909,6 +3931,7 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
 								type: "checkbox",
 								checked: optIn,
+								suppressHydrationWarning: true,
 								onChange: (event) => {
 									setOptIn(event.target.checked);
 									saveOptIn(event.target.checked);

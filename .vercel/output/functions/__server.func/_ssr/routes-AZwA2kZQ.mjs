@@ -1,7 +1,7 @@
 import { ot as require_jsx_runtime } from "../_libs/@react-three/drei+[...].mjs";
-import { y as Route$4 } from "./router-CYX8YvgB.mjs";
-import { t as ConjureApp } from "./app-DAlAXD0B.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-CGRf-bx4.js
+import { y as Route$4 } from "./router-DBCbc0FE.mjs";
+import { t as ConjureApp } from "./app-wwd7ACR1.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-AZwA2kZQ.js
 var import_jsx_runtime = require_jsx_runtime();
 function Home() {
 	const { room, watch } = Route$4.useSearch();

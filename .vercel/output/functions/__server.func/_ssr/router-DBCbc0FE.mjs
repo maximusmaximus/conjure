@@ -4,7 +4,7 @@ import { _ as createFileRoute, b as useRouter, d as Scripts, f as HeadContent, g
 import { c as stripSearchParams } from "../_libs/@tanstack/router-core+[...].mjs";
 import { t as TriangleAlert } from "../_libs/lucide-react.mjs";
 import { a as number, c as union, i as literal, n as array, o as object, r as boolean, s as string, t as _enum } from "../_libs/zod.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-CYX8YvgB.js
+//#region node_modules/.nitro/vite/services/ssr/assets/router-DBCbc0FE.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -425,7 +425,7 @@ var Route$5 = createRootRoute({
 		] })]
 	})
 });
-var $$splitComponentImporter$3 = () => import("./routes-CGRf-bx4.mjs");
+var $$splitComponentImporter$3 = () => import("./routes-AZwA2kZQ.mjs");
 var Route$4 = createFileRoute("/")({
 	validateSearch: (search) => ({
 		room: typeof search.room === "string" ? search.room.toUpperCase().slice(0, 4) : "",
@@ -437,9 +437,9 @@ var Route$4 = createFileRoute("/")({
 	})] },
 	component: lazyRouteComponent($$splitComponentImporter$3, "component")
 });
-var $$splitComponentImporter$2 = () => import("./credits-C8NwEPas.mjs");
+var $$splitComponentImporter$2 = () => import("./credits-BpkPXlIY.mjs");
 var Route$3 = createFileRoute("/credits")({ component: lazyRouteComponent($$splitComponentImporter$2, "component") });
-var $$splitComponentImporter$1 = () => import("./privacy-C1VA2dtx.mjs");
+var $$splitComponentImporter$1 = () => import("./privacy-DVIsDSzo.mjs");
 var Route$2 = createFileRoute("/privacy")({ component: lazyRouteComponent($$splitComponentImporter$1, "component") });
 var _0002_conjure_default = "-- Shared cauldrons. Rows are unowned: anyone with the room code can play.\n-- No emails, no raw audio, no camera frames.\n\ncreate table if not exists conjure_rooms (\n  code text primary key,\n  host_id text not null,\n  vibe text not null,\n  locked boolean not null default false,\n  consent text,\n  updated_at timestamptz not null default now()\n);\n\ncreate table if not exists conjure_members (\n  code text not null references conjure_rooms (code) on delete cascade,\n  device_id text not null,\n  name text not null,\n  role text not null,\n  seat text not null,\n  color text not null,\n  sensors text not null default '{}',\n  last_seen timestamptz not null default now(),\n  primary key (code, device_id)\n);\n\ncreate table if not exists conjure_drops (\n  id text primary key,\n  code text not null references conjure_rooms (code) on delete cascade,\n  ingredient text not null,\n  by_device text not null,\n  at_ms bigint not null,\n  neutral boolean not null default false\n);\n\ncreate index if not exists conjure_drops_code on conjure_drops (code, at_ms);\n\ncreate table if not exists conjure_room_creates (\n  id bigserial primary key,\n  device_id text not null,\n  created_at timestamptz not null default now()\n);\n\ncreate table if not exists conjure_reports (\n  id bigserial primary key,\n  creation_id text not null,\n  reason text not null,\n  created_at timestamptz not null default now()\n);\n\ncreate table if not exists conjure_events (\n  id bigserial primary key,\n  name text not null,\n  created_at timestamptz not null default now()\n);\n\ncreate table if not exists conjure_mints (\n  id bigserial primary key,\n  device_id text not null,\n  creation_id text not null,\n  created_at timestamptz not null default now(),\n  unique (device_id, creation_id)\n);\n";
 var _0003_board_default = "-- Opt-in scoreboard. Handle, score, and streak only. No wallet, no email.\n\ncreate table if not exists conjure_board (\n  device_id text primary key,\n  handle text not null,\n  xp integer not null,\n  streak integer not null,\n  level text not null,\n  updated_at timestamptz not null default now()\n);\n";
@@ -1389,7 +1389,7 @@ var Route$1 = createFileRoute("/api/conjure")({ server: { handlers: {
 	GET: handle,
 	POST: handle
 } } });
-var $$splitComponentImporter = () => import("./c._id-DfuYnhrF.mjs");
+var $$splitComponentImporter = () => import("./c._id-CSKf7b-8.mjs");
 var Route = createFileRoute("/c/$id")({
 	validateSearch: (search) => ({ d: typeof search.d === "string" ? search.d : "" }),
 	component: lazyRouteComponent($$splitComponentImporter, "component")

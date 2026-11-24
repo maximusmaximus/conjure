@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { BREW_BOUNDS, DESKTOP_FRAME, frameFor, isPhonePortrait, projectFrame } from "./frame.ts";
+import { BREW_BOUNDS, DESKTOP_FRAME, frameFor, isPhonePortrait, projectFrame, viewportForFrame } from "./frame.ts";
 
 const phones = [
   [320, 568],
@@ -48,4 +48,14 @@ test("portrait phones pull back, widen, and clear the bottom chrome", () => {
     assert.ok(maxX < 0.92, `${width}x${height} side ndc ${maxX}`);
   }
   assert.equal(new Set(seen).size, phones.length);
+});
+
+test("a wide canvas does not hide a portrait window", () => {
+  const view = viewportForFrame(980, 1600, 980, 1600, 390, 844);
+  assert.deepEqual(view, { width: 390, height: 844 });
+  assert.equal(isPhonePortrait(view.width, view.height), true);
+  assert.ok(frameFor(view.width, view.height).position[2] > DESKTOP_FRAME.position[2]);
+  const desktop = viewportForFrame(1280, 800, 1280, 800, 1280, 800);
+  assert.deepEqual(desktop, { width: 1280, height: 800 });
+  assert.deepEqual(frameFor(desktop.width, desktop.height).position, DESKTOP_FRAME.position);
 });

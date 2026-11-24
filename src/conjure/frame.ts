@@ -68,6 +68,25 @@ function dot(a: [number, number, number], b: [number, number, number]): number {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
+/** CSS pixels the live view should trust.
+ * A canvas or parent wider than the window must not keep the desktop camera. */
+export function viewportForFrame(
+  r3fWidth: number,
+  r3fHeight: number,
+  clientWidth: number,
+  clientHeight: number,
+  innerWidth: number,
+  innerHeight: number,
+): { width: number; height: number } {
+  const usable = (n: number) => Number.isFinite(n) && n >= 32;
+  const widths = [r3fWidth, clientWidth, innerWidth].filter(usable);
+  const heights = [r3fHeight, clientHeight, innerHeight].filter(usable);
+  return {
+    width: widths.length ? Math.min(...widths) : 1280,
+    height: heights.length ? Math.min(...heights) : 800,
+  };
+}
+
 /** Normalized device coordinates. y = 1 is the top of the view. */
 export function projectFrame(
   frame: CameraFrame,

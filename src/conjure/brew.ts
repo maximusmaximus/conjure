@@ -242,3 +242,24 @@ export function decaySensor(sensor: SensorMix, dt: number): void {
   if (sensor.shake < 0.01) sensor.shake = 0;
   if (sensor.wave < 0.01) sensor.wave = 0;
 }
+
+/** While device motion is writing absolute tilt, don't fight it. */
+let tiltHold = 0;
+
+export function holdDeviceTilt(seconds = 0.45): void {
+  if (seconds > tiltHold) tiltHold = seconds;
+}
+
+/** Finger leans and throw leans return to upright. Device tilt is left alone while it reports. */
+export function springTilt(sensor: SensorMix, dt: number): void {
+  const step = Math.min(Math.max(dt, 0), 0.1);
+  if (tiltHold > 0) {
+    tiltHold = Math.max(0, tiltHold - step);
+    return;
+  }
+  const tiltK = Math.exp(-step * 3.1);
+  sensor.tiltX *= tiltK;
+  sensor.tiltY *= tiltK;
+  if (Math.abs(sensor.tiltX) < 0.01) sensor.tiltX = 0;
+  if (Math.abs(sensor.tiltY) < 0.01) sensor.tiltY = 0;
+}

@@ -1,8 +1,8 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { B as PerspectiveCamera, K as RGBAFormat, O as Matrix4, R as Object3D, U as Quaternion, W as QuaternionKeyframeTrack, Y as SRGBColorSpace, _ as Euler, a as useFrame, c as AnimationClip, f as CanvasTexture, g as DataTexture, i as Canvas, m as Color, n as AdaptiveDpr, nt as Vector3, o as useThree, ot as require_jsx_runtime, p as ClampToEdgeWrapping, q as Raycaster, r as ContactShadows, s as PMREMGenerator, st as require_react, t as PerformanceMonitor, tt as Vector2, w as LinearFilter } from "../_libs/@react-three/drei+[...].mjs";
-import { C as setGrabStill, D as spinFrames, E as spin, O as spinSnapshot, S as setExportGlb, T as sloshGrid, _ as punch, a as computeBrew, b as remoteSensor, c as flingVel, d as liveBodies, f as liveSensor, g as physicsSnapshot, h as masterMix, i as blendSensors, j as toolTouch, k as stepBrewPhysics, l as hslToHex, m as localGravity, o as decaySensor, r as SLOSH_AMP, s as effectsFor, u as ingredientById, v as punchStrength, w as setRayView, x as setEnterAR, y as rememberedMotion } from "./app-DAlAXD0B.mjs";
+import { C as setGrabStill, D as spinFrames, E as spin, O as spinSnapshot, S as setExportGlb, T as sloshGrid, _ as punch, a as computeBrew, b as remoteSensor, c as flingVel, d as liveBodies, f as liveSensor, g as physicsSnapshot, h as masterMix, i as blendSensors, j as toolTouch, k as stepBrewPhysics, l as hslToHex, m as localGravity, o as decaySensor, r as SLOSH_AMP, s as effectsFor, u as ingredientById, v as punchStrength, w as setRayView, x as setEnterAR, y as rememberedMotion } from "./app-wwd7ACR1.mjs";
 import { a as RenderPass, i as UnrealBloomPass, n as RoomEnvironment, o as EffectComposer, r as BokehPass } from "../_libs/three.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/scene-DhshJ5Gb.js
+//#region node_modules/.nitro/vite/services/ssr/assets/scene-nwoVXmFv.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var DESKTOP_FRAME = {
@@ -54,6 +54,25 @@ function frameFor(width, height) {
 			0
 		],
 		fov: 52 + tall * 12 + narrow * 2
+	};
+}
+/** CSS pixels the live view should trust.
+* A canvas or parent wider than the window must not keep the desktop camera. */
+function viewportForFrame(r3fWidth, r3fHeight, clientWidth, clientHeight, innerWidth, innerHeight) {
+	const usable = (n) => Number.isFinite(n) && n >= 32;
+	const widths = [
+		r3fWidth,
+		clientWidth,
+		innerWidth
+	].filter(usable);
+	const heights = [
+		r3fHeight,
+		clientHeight,
+		innerHeight
+	].filter(usable);
+	return {
+		width: widths.length ? Math.min(...widths) : 1280,
+		height: heights.length ? Math.min(...heights) : 800
 	};
 }
 var potPoints = (() => {
@@ -122,7 +141,8 @@ function BrewMesh({ drops, vibe, form, reduced, particles, detail, fx }) {
 	const compilePotion = (0, import_react.useCallback)((shader) => {
 		shader.uniforms.uSlosh = liquidUniforms.uSlosh;
 		shader.uniforms.uTime = liquidUniforms.uTime;
-		shader.vertexShader = shader.vertexShader.replace("#include <uv_pars_vertex>", "#include <uv_pars_vertex>\nuniform sampler2D uSlosh;\nuniform float uTime;").replace("#include <begin_vertex>", "#include <begin_vertex>\nfloat sloshH = texture2D(uSlosh, uv).r * 2.0 - 1.0;\nfloat rr = length(uv - 0.5);\nfloat rings = sin(rr * 48.0 - uTime * 6.2);\ntransformed.z += clamp(sloshH * 0.5 + rings * 0.18, -0.2, 0.48);");
+		shader.vertexShader = shader.vertexShader.replace("#include <uv_pars_vertex>", "#include <uv_pars_vertex>\nuniform sampler2D uSlosh;\nuniform float uTime;\nvarying vec2 vRingUv;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvRingUv = uv;\nfloat sloshH = texture2D(uSlosh, uv).r * 2.0 - 1.0;\nfloat rr = length(uv - 0.5);\nfloat rings = sin(rr * 34.0 - uTime * 5.6);\ntransformed.z += clamp(sloshH * 0.55 + rings * 0.28, -0.2, 0.5);");
+		shader.fragmentShader = shader.fragmentShader.replace("#include <common>", "#include <common>\nuniform float uTime;\nvarying vec2 vRingUv;").replace("#include <opaque_fragment>", "#include <opaque_fragment>\nfloat rr = length(vRingUv - 0.5);\nfloat ring = pow(sin(rr * 34.0 - uTime * 5.6) * 0.5 + 0.5, 2.0);\ngl_FragColor.rgb += vec3(1.0, 0.94, 0.78) * ring * 0.85;");
 	}, [liquidUniforms]);
 	const skinUniforms = (0, import_react.useMemo)(() => ({
 		uTime: { value: 0 },
@@ -336,7 +356,7 @@ function BrewMesh({ drops, vibe, form, reduced, particles, detail, fx }) {
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("mesh", {
 					position: [
 						0,
-						.72,
+						.8,
 						0
 					],
 					rotation: [
@@ -344,18 +364,21 @@ function BrewMesh({ drops, vibe, form, reduced, particles, detail, fx }) {
 						0,
 						0
 					],
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("circleGeometry", { args: [.78, 48] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("shaderMaterial", {
+					renderOrder: 2,
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("circleGeometry", { args: [.78, 64] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("shaderMaterial", {
 						ref: liquid,
 						transparent: true,
+						depthWrite: false,
 						uniforms: liquidUniforms,
 						vertexShader: liquidVert,
 						fragmentShader: liquidFrag
 					})]
 				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SurfaceRings, {}),
 				fx.transmission > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("mesh", {
 					position: [
 						0,
-						.75,
+						.74,
 						0
 					],
 					rotation: [
@@ -363,6 +386,7 @@ function BrewMesh({ drops, vibe, form, reduced, particles, detail, fx }) {
 						0,
 						0
 					],
+					renderOrder: 1,
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("circleGeometry", { args: [.76, 64] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("meshPhysicalMaterial", {
 						ref: potion,
 						color: "#c46a32",
@@ -379,7 +403,8 @@ function BrewMesh({ drops, vibe, form, reduced, particles, detail, fx }) {
 						emissive: "#c46a32",
 						emissiveIntensity: fx.emissiveIntensity * .55,
 						transparent: true,
-						opacity: .72,
+						opacity: .42,
+						depthWrite: false,
 						attenuationColor: "#e27a3a",
 						attenuationDistance: .35,
 						onBeforeCompile: compilePotion
@@ -702,6 +727,53 @@ function PhysVis({ fx }) {
 		})]
 	})] });
 }
+function SurfaceRings() {
+	const refs = [
+		(0, import_react.useRef)(null),
+		(0, import_react.useRef)(null),
+		(0, import_react.useRef)(null)
+	];
+	useFrame(({ clock }) => {
+		const t = clock.elapsedTime;
+		refs.forEach((ref, i) => {
+			const mesh = ref.current;
+			if (!mesh) return;
+			const wave = .5 + .5 * Math.sin(t * 3.1 - i * .95);
+			mesh.scale.setScalar(.78 + i * .04 + wave * .08);
+			const mat = mesh.material;
+			mat.opacity = .28 + wave * .62;
+		});
+	});
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("group", {
+		position: [
+			0,
+			.83,
+			0
+		],
+		rotation: [
+			-Math.PI / 2,
+			0,
+			0
+		],
+		renderOrder: 3,
+		children: refs.map((ref, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("mesh", {
+			ref,
+			renderOrder: 3,
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("ringGeometry", { args: [
+				.18 + i * .16,
+				.23 + i * .16,
+				64
+			] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("meshBasicMaterial", {
+				color: "#fff6df",
+				transparent: true,
+				opacity: .75,
+				depthWrite: false,
+				toneMapped: false,
+				side: 2
+			})]
+		}, i))
+	});
+}
 function Ladle() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("group", { children: [
 		/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("mesh", {
@@ -837,13 +909,13 @@ var liquidVert = `
     vec2 c = uv - 0.5;
     float r = length(c);
     float hTex = texture2D(uSlosh, uv).r * 2.0 - 1.0;
-    float rings = sin(r * 48.0 - uTime * 6.2);
-    float rings2 = sin(r * 22.0 - uTime * 3.1 + 1.1);
-    float amp = 0.16 + uEnergy * 0.1;
+    float rings = sin(r * 32.0 - uTime * 5.2);
+    float rings2 = sin(r * 16.0 - uTime * 2.5 + 1.1);
+    float amp = 0.22 + uEnergy * 0.14;
     float disp = clamp(hTex * 0.52 + rings * amp + rings2 * amp * 0.65, -0.22, 0.48);
     vec3 p = position;
     p.z += disp;
-    float slope = cos(r * 48.0 - uTime * 6.2) * 48.0 * amp + cos(r * 22.0 - uTime * 3.1 + 1.1) * 22.0 * amp * 0.65;
+    float slope = cos(r * 32.0 - uTime * 5.2) * 32.0 * amp + cos(r * 16.0 - uTime * 2.5 + 1.1) * 16.0 * amp * 0.65;
     vec2 dir = r > 0.0008 ? c / r : vec2(0.0);
     vN = normalize(vec3(-dir.x * slope, -dir.y * slope, 1.0));
     vWave = rings * 0.5 + 0.5;
@@ -861,8 +933,8 @@ var liquidFrag = `
   void main() {
     vec2 p = vUv - 0.5;
     float r = length(p);
-    float rings = sin(r * 46.0 - uTime * 6.0) * 0.5 + 0.5;
-    float rings2 = sin(r * 20.0 - uTime * 2.7) * 0.5 + 0.5;
+    float rings = sin(r * 30.0 - uTime * 5.0) * 0.5 + 0.5;
+    float rings2 = sin(r * 15.0 - uTime * 2.4) * 0.5 + 0.5;
     vec3 n = normalize(vN);
     vec3 lightDir = normalize(vec3(0.25, 0.45, 1.0));
     vec3 viewDir = vec3(0.0, 0.15, 1.0);
@@ -872,7 +944,7 @@ var liquidFrag = `
     vec3 col = uColor * (0.42 + 0.85 * rings * (0.45 + uEnergy) + 0.35 * rings2);
     col += uColor * ndl * 0.45;
     col += vec3(1.0, 0.94, 0.82) * spec * (0.85 + uEnergy);
-    col += vec3(1.0, 0.86, 0.62) * pow(rings, 3.0) * 0.55;
+    col += vec3(1.0, 0.86, 0.62) * pow(rings, 2.0) * 1.05;
     col += vec3(1.0, 0.95, 0.85) * vWave * rings2 * 0.2;
     float alpha = rim * 0.96;
     if (alpha < 0.02) discard;
@@ -947,18 +1019,22 @@ function Grade({ fx }) {
 function Post({ fx }) {
 	const { gl, scene, camera, size } = useThree();
 	const composer = (0, import_react.useRef)(null);
+	const bokeh = (0, import_react.useRef)(null);
 	const ratio = (0, import_react.useRef)(0);
 	(0, import_react.useEffect)(() => {
 		const next = new EffectComposer(gl);
 		next.addPass(new RenderPass(scene, camera));
 		if (fx.bloom > 0) next.addPass(new UnrealBloomPass(new Vector2(size.width, size.height), fx.bloom, .22, .94));
+		bokeh.current = null;
 		if (fx.dof) {
 			const dist = camera.position.distanceTo(new Vector3(0, .7, 0));
-			next.addPass(new BokehPass(scene, camera, {
+			const pass = new BokehPass(scene, camera, {
 				focus: dist,
 				aperture: 15e-5,
 				maxblur: .0045
-			}));
+			});
+			next.addPass(pass);
+			bokeh.current = pass;
 		}
 		next.setPixelRatio(gl.getPixelRatio());
 		next.setSize(size.width, size.height);
@@ -967,6 +1043,7 @@ function Post({ fx }) {
 		return () => {
 			next.dispose();
 			composer.current = null;
+			bokeh.current = null;
 		};
 	}, [
 		gl,
@@ -986,59 +1063,53 @@ function Post({ fx }) {
 			current.setPixelRatio(pixelRatio);
 			current.setSize(size.width, size.height);
 		}
+		const pass = bokeh.current;
+		if (pass) {
+			const uniforms = pass.uniforms;
+			if (uniforms.focus) uniforms.focus.value = camera.position.distanceTo(new Vector3(0, .7, 0));
+		}
 		current.render();
 	}, 1);
 	return null;
 }
+function applyFrame(camera, width, height, aspect) {
+	const frame = frameFor(width, height);
+	camera.position.set(frame.position[0], frame.position[1], frame.position[2]);
+	camera.lookAt(frame.lookAt[0], frame.lookAt[1], frame.lookAt[2]);
+	if (camera instanceof PerspectiveCamera) {
+		const framed = camera;
+		framed.fov = frame.fov;
+		framed.aspect = aspect;
+		framed.manual = true;
+		framed.updateProjectionMatrix();
+	}
+}
 function FrameCamera() {
 	const { camera, size, gl } = useThree();
-	(0, import_react.useLayoutEffect)(() => {
-		const frame = frameFor(size.width || gl.domElement.clientWidth || 1, size.height || gl.domElement.clientHeight || 1);
-		camera.position.set(frame.position[0], frame.position[1], frame.position[2]);
-		camera.lookAt(frame.lookAt[0], frame.lookAt[1], frame.lookAt[2]);
-		if (camera instanceof PerspectiveCamera) {
-			camera.fov = frame.fov;
-			camera.updateProjectionMatrix();
-		}
-	}, [
-		camera,
-		gl,
-		size.width,
-		size.height
-	]);
-	(0, import_react.useEffect)(() => {
-		const apply = () => {
-			const frame = frameFor(gl.domElement.clientWidth || window.innerWidth, gl.domElement.clientHeight || window.innerHeight);
-			camera.position.set(frame.position[0], frame.position[1], frame.position[2]);
-			camera.lookAt(frame.lookAt[0], frame.lookAt[1], frame.lookAt[2]);
-			if (camera instanceof PerspectiveCamera) {
-				camera.fov = frame.fov;
-				camera.updateProjectionMatrix();
-			}
-		};
-		window.addEventListener("resize", apply);
-		window.addEventListener("orientationchange", apply);
-		return () => {
-			window.removeEventListener("resize", apply);
-			window.removeEventListener("orientationchange", apply);
-		};
-	}, [camera, gl]);
+	useFrame(() => {
+		const canvas = gl.domElement;
+		const view = viewportForFrame(size.width, size.height, canvas.clientWidth, canvas.clientHeight, window.innerWidth, window.innerHeight);
+		const aspectW = canvas.clientWidth >= 32 ? canvas.clientWidth : size.width || view.width;
+		const aspectH = canvas.clientHeight >= 32 ? canvas.clientHeight : size.height || view.height;
+		applyFrame(camera, view.width, view.height, aspectW / Math.max(aspectH, 1));
+	});
 	return null;
 }
 function CauldronScene({ drops, vibe, form, quality, reduced }) {
 	const root = (0, import_react.useRef)(null);
 	const fx = (0, import_react.useMemo)(() => effectsFor(quality), [quality]);
+	const initialCamera = (0, import_react.useMemo)(() => ({
+		position: [
+			0,
+			2.55,
+			4.05
+		],
+		fov: 34
+	}), []);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Canvas, {
 		dpr: quality.dpr,
 		shadows: fx.shadows ? "soft" : false,
-		camera: {
-			position: [
-				0,
-				2.55,
-				4.05
-			],
-			fov: 34
-		},
+		camera: initialCamera,
 		gl: {
 			antialias: quality.tier !== "low",
 			alpha: false,
@@ -1047,13 +1118,10 @@ function CauldronScene({ drops, vibe, form, quality, reduced }) {
 		},
 		onCreated: ({ gl, camera }) => {
 			gl.setClearColor("#110e0c", 1);
-			const frame = frameFor(window.innerWidth, window.innerHeight);
-			camera.position.set(frame.position[0], frame.position[1], frame.position[2]);
-			camera.lookAt(frame.lookAt[0], frame.lookAt[1], frame.lookAt[2]);
-			if (camera instanceof PerspectiveCamera) {
-				camera.fov = frame.fov;
-				camera.updateProjectionMatrix();
-			}
+			const view = viewportForFrame(gl.domElement.clientWidth, gl.domElement.clientHeight, gl.domElement.clientWidth, gl.domElement.clientHeight, window.innerWidth, window.innerHeight);
+			const aspectW = gl.domElement.clientWidth || view.width;
+			const aspectH = gl.domElement.clientHeight || view.height;
+			applyFrame(camera, view.width, view.height, aspectW / Math.max(aspectH, 1));
 			gl.outputColorSpace = SRGBColorSpace;
 			gl.toneMapping = fx.toneMapping === "AgX" ? 6 : 4;
 			gl.toneMappingExposure = fx.master ? 1 : .92;

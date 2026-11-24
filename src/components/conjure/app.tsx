@@ -11,6 +11,7 @@ import {
   computeBrew,
   hslToHex,
   ingredientById,
+  springTilt,
   titleFromDrops,
   type Drop,
   type FormId,
@@ -276,6 +277,9 @@ export function ConjureApp({
         if (toolTouch.swirl) impulse(0, 0, masterMix.swirl * dt * 2.2 * scale);
         stepSpin(dt * scale);
       }
+      springTilt(liveSensor, dt);
+      prevTiltX = liveSensor.tiltX;
+      prevTiltY = liveSensor.tiltY;
       const stage = document.querySelector(".stage");
       if (stage instanceof HTMLElement) {
         const shown = shownColor(useBrew.getState().drops, useBrew.getState().vibe);
@@ -1290,6 +1294,7 @@ export function ConjureApp({
             <input
               type="checkbox"
               checked={optIn}
+              suppressHydrationWarning
               onChange={(event) => {
                 setOptIn(event.target.checked);
                 saveOptIn(event.target.checked);

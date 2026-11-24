@@ -4,8 +4,10 @@ import {
   blendSensors,
   computeBrew,
   emptySensor,
+  holdDeviceTilt,
   hslToHex,
   mixHue,
+  springTilt,
   titleFromDrops,
   type Drop,
 } from "./brew.ts";
@@ -74,4 +76,29 @@ test("titles skip neutral drops", () => {
     { id: "b", ingredient: "spark", by: "y", at: 1, neutral: true },
   ]);
   assert.equal(title, "Moss brew");
+});
+
+test("a knocked tilt springs back to rest", () => {
+  const sensor = emptySensor();
+  sensor.tiltX = 0.82;
+  sensor.tiltY = -0.58;
+  sensor.burst = 1;
+  for (let i = 0; i < 150; i += 1) springTilt(sensor, 1 / 30);
+  assert.ok(Math.abs(sensor.tiltX) < 0.02);
+  assert.ok(Math.abs(sensor.tiltY) < 0.02);
+  assert.equal(sensor.burst, 1);
+});
+
+test("device motion holds tilt while it is reporting", () => {
+  const sensor = emptySensor();
+  sensor.tiltX = 0.44;
+  sensor.tiltY = -0.2;
+  holdDeviceTilt(1);
+  springTilt(sensor, 0.2);
+  assert.equal(sensor.tiltX, 0.44);
+  assert.equal(sensor.tiltY, -0.2);
+  springTilt(sensor, 1);
+  for (let i = 0; i < 150; i += 1) springTilt(sensor, 1 / 30);
+  assert.ok(Math.abs(sensor.tiltX) < 0.02);
+  assert.ok(Math.abs(sensor.tiltY) < 0.02);
 });

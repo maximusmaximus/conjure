@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { burstSound } from "./audio";
+import { holdDeviceTilt } from "./brew";
 import { liveSensor } from "./live";
 
 export type SensorKind = "mic" | "camera" | "motion" | null;
@@ -175,6 +176,7 @@ export function useSensors(kind: SensorKind, onError: (message: string) => void)
             if (gravity) {
               liveSensor.tiltX = Math.max(-1, Math.min(1, (gravity.x ?? 0) / 9));
               liveSensor.tiltY = Math.max(-1, Math.min(1, (gravity.y ?? 0) / 12));
+              holdDeviceTilt();
             }
             const acc = event.acceleration;
             const mag = Math.hypot(acc?.x ?? 0, acc?.y ?? 0, acc?.z ?? 0);
