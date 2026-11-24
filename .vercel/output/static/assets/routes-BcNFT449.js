@@ -1,1 +1,0 @@
-import{n as e}from"./with-selector-quzb8Bfu.js";import{n as t}from"./index-6i9wlz3g.js";import{t as n}from"./app-CrQaVjDE.js";var r=e();function i(){let{room:e,watch:i,debug:a}=t.useSearch();return(0,r.jsx)(n,{invite:e,watch:i,debug:a===1})}export{i as component};

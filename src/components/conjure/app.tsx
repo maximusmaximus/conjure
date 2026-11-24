@@ -126,6 +126,7 @@ function FrameReadout() {
           `camera ${d.position.map((n) => n.toFixed(2)).join(" ")}`,
           `fov ${d.fov.toFixed(1)}`,
           `mode ${d.mode}`,
+          `margin ${d.margin.toFixed(2)}`,
         ].join("\n");
       }
       frame = requestAnimationFrame(tick);

@@ -1,12 +1,12 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { ot as require_jsx_runtime, st as require_react } from "../_libs/@react-three/drei+[...].mjs";
 import { y as Link } from "../_libs/@tanstack/react-router+[...].mjs";
-import { _ as cleanName, a as cleanHandle, c as emptyProgress, d as loadProgress, f as nextStepId, g as xpToNext, h as walletUnlocked, i as award, l as loadBoardPrefs, m as saveProgress, o as currentTip, p as saveBoardPrefs, r as LEVELS, s as dismissTip, u as loadDismissedTips, v as resolveVotes } from "./router-CIsnqhEA.mjs";
+import { _ as cleanName, a as cleanHandle, c as emptyProgress, d as loadProgress, f as nextStepId, g as xpToNext, h as walletUnlocked, i as award, l as loadBoardPrefs, m as saveProgress, o as currentTip, p as saveBoardPrefs, r as LEVELS, s as dismissTip, u as loadDismissedTips, v as resolveVotes } from "./router-CyDp3qr4.mjs";
 import { t as require_xeroemoji } from "../_libs/xeroemoji.mjs";
 import { Ht as parseAbiItem, n as getPublicClient, pn as erc721Abi, t as createConfig } from "../_libs/@wagmi/core+[...].mjs";
 import { i as defineChain, n as custom, r as createWalletClient, t as http } from "../_libs/viem.mjs";
 import { t as create } from "../_libs/zustand.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/app-BzIaw2Tf.js
+//#region node_modules/.nitro/vite/services/ssr/assets/app-BbvnbAT-.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var import_xeroemoji = require_xeroemoji();
@@ -430,61 +430,270 @@ function haptic(pattern) {
 		if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") navigator.vibrate(pattern);
 	} catch {}
 }
-var DESKTOP_FRAME = {
-	position: [
+/** Points that must stay on screen: feet, rim, ladle, and a high spark. */
+var BREW_BOUNDS = [
+	[
 		0,
-		2.55,
-		4.05
-	],
-	lookAt: [
-		0,
-		.95,
+		.02,
 		0
 	],
-	fov: 34
-};
+	[
+		1.22,
+		.28,
+		0
+	],
+	[
+		-1.22,
+		.28,
+		0
+	],
+	[
+		0,
+		.28,
+		1.18
+	],
+	[
+		0,
+		.28,
+		-1.18
+	],
+	[
+		1.12,
+		1.08,
+		0
+	],
+	[
+		-1.12,
+		1.08,
+		0
+	],
+	[
+		1.58,
+		1.92,
+		0
+	],
+	[
+		0,
+		2.62,
+		0
+	],
+	[
+		1.05,
+		2.28,
+		.35
+	]
+];
 var POT_SCALE_MIN = .9;
 var POT_SCALE_MAX = 1.22;
+/** Largest lean the frame must still contain, tumble plus a throw. */
+var POT_TILT_MAX = .75;
+/** Ground spill around the pot, in rest pose before scale and tilt. */
+var SPILL_POINTS = [
+	[
+		1.95,
+		.08,
+		0
+	],
+	[
+		-1.95,
+		.08,
+		0
+	],
+	[
+		0,
+		.08,
+		1.95
+	],
+	[
+		0,
+		.08,
+		-1.95
+	],
+	[
+		1.4,
+		.4,
+		1.25
+	],
+	[
+		-1.4,
+		1.2,
+		0
+	],
+	[
+		1.25,
+		1.85,
+		0
+	],
+	[
+		0,
+		2.75,
+		0
+	]
+];
+function applyTiltScale(point, tilt, scale) {
+	const [x, y, z] = point;
+	const c = Math.cos(tilt);
+	const s = Math.sin(tilt);
+	const yx = y * c - z * s;
+	const zx = y * s + z * c;
+	const x2 = x * c - yx * s;
+	const y2 = x * s + yx * c;
+	return [
+		x2 * scale,
+		y2 * scale,
+		zx * scale
+	];
+}
+var fitCache = null;
+/** Rim, ladle, and spill after the pot's largest breath and tilt. */
+function spillFramePoints() {
+	if (fitCache) return fitCache;
+	const out = [];
+	for (const point of [...BREW_BOUNDS, ...SPILL_POINTS]) {
+		out.push(applyTiltScale(point, POT_TILT_MAX, POT_SCALE_MAX));
+		out.push(applyTiltScale(point, -.75, POT_SCALE_MAX));
+	}
+	fitCache = out;
+	return out;
+}
+/** Any viewport taller than it is wide. Width is not a cutoff. */
 function isPhonePortrait(width, height) {
-	return width >= 280 && width <= 430 && height > width;
+	return height > width;
 }
 function clamp01(n) {
 	return Math.max(0, Math.min(1, n));
 }
-/** Aspect-responsive frame. Recomputed by the scene on resize and orientation change. */
-function frameFor(width, height) {
-	if (!isPhonePortrait(width, height)) return {
-		position: [
-			DESKTOP_FRAME.position[0],
-			DESKTOP_FRAME.position[1],
-			DESKTOP_FRAME.position[2]
-		],
-		lookAt: [
-			DESKTOP_FRAME.lookAt[0],
-			DESKTOP_FRAME.lookAt[1],
-			DESKTOP_FRAME.lookAt[2]
-		],
-		fov: DESKTOP_FRAME.fov
+function norm(v) {
+	const len = Math.hypot(v[0], v[1], v[2]) || 1;
+	return [
+		v[0] / len,
+		v[1] / len,
+		v[2] / len
+	];
+}
+function cross(a, b) {
+	return [
+		a[1] * b[2] - a[2] * b[1],
+		a[2] * b[0] - a[0] * b[2],
+		a[0] * b[1] - a[1] * b[0]
+	];
+}
+function dot(a, b) {
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+function projectFrame(frame, point, aspect) {
+	const eye = frame.position;
+	const zAxis = norm([
+		eye[0] - frame.lookAt[0],
+		eye[1] - frame.lookAt[1],
+		eye[2] - frame.lookAt[2]
+	]);
+	const xAxis = norm(cross([
+		0,
+		1,
+		0
+	], zAxis));
+	const yAxis = cross(zAxis, xAxis);
+	const rel = [
+		point[0] - eye[0],
+		point[1] - eye[1],
+		point[2] - eye[2]
+	];
+	const vx = dot(rel, xAxis);
+	const vy = dot(rel, yAxis);
+	const depth = -dot(rel, zAxis) || 1e-4;
+	const tan = Math.tan(frame.fov * Math.PI / 360);
+	return {
+		x: vx / depth * (1 / (aspect * tan)),
+		y: vy / depth * (1 / tan)
 	};
-	const short = clamp01((width / Math.max(height, 1) - .42) / .18);
-	const tall = 1 - short;
-	const narrow = clamp01((430 - width) / 150);
+}
+function covers(frame, aspect, limit) {
+	const eye = frame.position;
+	const zAxis = norm([
+		eye[0] - frame.lookAt[0],
+		eye[1] - frame.lookAt[1],
+		eye[2] - frame.lookAt[2]
+	]);
+	const xAxis = norm(cross([
+		0,
+		1,
+		0
+	], zAxis));
+	const yAxis = cross(zAxis, xAxis);
+	const tan = Math.tan(frame.fov * Math.PI / 360);
+	for (const point of spillFramePoints()) {
+		const rel = [
+			point[0] - eye[0],
+			point[1] - eye[1],
+			point[2] - eye[2]
+		];
+		const depth = -dot(rel, zAxis);
+		if (depth < .25) return false;
+		const x = dot(rel, xAxis) / depth * (1 / (aspect * tan));
+		const y = dot(rel, yAxis) / depth * (1 / tan);
+		if (Math.abs(x) > limit || Math.abs(y) > limit) return false;
+	}
+	return true;
+}
+/** Smallest distance whose horizontal and vertical fov still hold the scaled pot and the spill. */
+function frameFor(width, height) {
+	const w = Math.max(width, 1);
+	const h = Math.max(height, 1);
+	const aspect = w / h;
+	const portrait = h > w;
+	const tall = clamp01((.82 - aspect) / .46);
+	const wide = clamp01((aspect - 1.05) / 1.1);
+	const fov = portrait ? 50 + tall * 10 : 36 + wide * 6;
+	const lookY = portrait ? .66 - tall * .08 : 1;
+	const eyeY = portrait ? 2.15 + tall * .2 : 2.62;
+	let lo = 2.4;
+	let hi = 42;
+	let best = hi;
+	for (let i = 0; i < 24; i += 1) {
+		const z = (lo + hi) * .5;
+		if (covers({
+			position: [
+				0,
+				eyeY,
+				z
+			],
+			lookAt: [
+				0,
+				lookY,
+				0
+			],
+			fov
+		}, aspect, .92)) {
+			best = z;
+			hi = z;
+		} else lo = z;
+	}
 	return {
 		position: [
 			0,
-			2.28 + short * .14 + tall * .18,
-			8.85 + tall * .95 + short * .3 + narrow * .35
+			eyeY,
+			best
 		],
 		lookAt: [
 			0,
-			.58 - short * .08,
+			lookY,
 			0
 		],
-		fov: 58 + tall * 6 + narrow * 2
+		fov
 	};
 }
+/** How much NDC is left outside the scaled pot and the spill. Positive means it fits. */
+function frameMargin(frame, aspect) {
+	let peak = 0;
+	for (const point of spillFramePoints()) {
+		const ndc = projectFrame(frame, point, aspect);
+		peak = Math.max(peak, Math.abs(ndc.x), Math.abs(ndc.y));
+	}
+	return 1 - peak;
+}
 /** CSS pixels the live view should trust.
-* A canvas or parent wider than the window must not keep the desktop camera. */
+* A canvas or parent wider than the window must not hide a portrait window. */
 function viewportForFrame(r3fWidth, r3fHeight, clientWidth, clientHeight, innerWidth, innerHeight) {
 	const usable = (n) => Number.isFinite(n) && n >= 32;
 	const widths = [
@@ -503,7 +712,7 @@ function viewportForFrame(r3fWidth, r3fHeight, clientWidth, clientHeight, innerW
 	};
 }
 function frameMode(width, height) {
-	return isPhonePortrait(width, height) ? "phone" : "desktop";
+	return isPhonePortrait(width, height) ? "portrait" : "desktop";
 }
 var frameDebug = {
 	innerWidth: 0,
@@ -517,7 +726,8 @@ var frameDebug = {
 		4.05
 	],
 	fov: 34,
-	mode: "desktop"
+	mode: "desktop",
+	margin: 0
 };
 function publishFrameDebug(next) {
 	frameDebug.innerWidth = next.innerWidth;
@@ -528,6 +738,7 @@ function publishFrameDebug(next) {
 	frameDebug.position = next.position;
 	frameDebug.fov = next.fov;
 	frameDebug.mode = next.mode;
+	frameDebug.margin = next.margin;
 }
 var spin = {
 	x: 0,
@@ -2958,7 +3169,7 @@ var useBrew = create((set, get) => ({
 	setNotice: (notice) => set({ notice }),
 	setRecording: (recording) => set({ recording })
 }));
-var CauldronScene = (0, import_react.lazy)(() => import("./scene-rycsimn8.mjs").then((mod) => ({ default: mod.CauldronScene })));
+var CauldronScene = (0, import_react.lazy)(() => import("./scene-B9oOaNEY.mjs").then((mod) => ({ default: mod.CauldronScene })));
 var StageBoundary = class extends import_react.Component {
 	state = { bad: false };
 	static getDerivedStateFromError() {
@@ -2991,7 +3202,8 @@ function FrameReadout() {
 					`dpr ${d.dpr.toFixed(2)}`,
 					`camera ${d.position.map((n) => n.toFixed(2)).join(" ")}`,
 					`fov ${d.fov.toFixed(1)}`,
-					`mode ${d.mode}`
+					`mode ${d.mode}`,
+					`margin ${d.margin.toFixed(2)}`
 				].join("\n");
 			}
 			frame = requestAnimationFrame(tick);
@@ -5074,4 +5286,4 @@ function PageFrame({ title, children }) {
 	});
 }
 //#endregion
-export { spin as A, rememberedMotion as C, setGrabStill as D, setExportGlb as E, t as F, toolTouch as I, tumble as L, spinSnapshot as M, stepBrewPhysics as N, setRayView as O, stepTumble as P, viewportForFrame as R, punchStrength as S, setEnterAR as T, masterMix as _, computeBrew as a, publishFrameDebug as b, flingVel as c, hslToHex as d, ingredientById as f, localGravity as g, loadReplay as h, blendSensors as i, spinFrames as j, sloshGrid as k, frameFor as l, liveSensor as m, PageFrame as n, decaySensor as o, liveBodies as p, SLOSH_AMP as r, effectsFor as s, ConjureApp as t, frameMode as u, physicsSnapshot as v, remoteSensor as w, punch as x, poseNow as y };
+export { sloshGrid as A, punchStrength as C, setExportGlb as D, setEnterAR as E, stepTumble as F, t as I, toolTouch as L, spinFrames as M, spinSnapshot as N, setGrabStill as O, stepBrewPhysics as P, tumble as R, punch as S, remoteSensor as T, localGravity as _, computeBrew as a, poseNow as b, flingVel as c, frameMode as d, hslToHex as f, loadReplay as g, liveSensor as h, blendSensors as i, spin as j, setRayView as k, frameFor as l, liveBodies as m, PageFrame as n, decaySensor as o, ingredientById as p, SLOSH_AMP as r, effectsFor as s, ConjureApp as t, frameMargin as u, masterMix as v, rememberedMotion as w, publishFrameDebug as x, physicsSnapshot as y, viewportForFrame as z };

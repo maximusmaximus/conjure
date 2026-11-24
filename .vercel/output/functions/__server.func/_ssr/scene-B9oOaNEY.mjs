@@ -1,8 +1,8 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { B as PerspectiveCamera, K as RGBAFormat, O as Matrix4, R as Object3D, U as Quaternion, W as QuaternionKeyframeTrack, Y as SRGBColorSpace, _ as Euler, a as useFrame, c as AnimationClip, f as CanvasTexture, g as DataTexture, i as Canvas, m as Color, n as AdaptiveDpr, nt as Vector3, o as useThree, ot as require_jsx_runtime, p as ClampToEdgeWrapping, q as Raycaster, r as ContactShadows, s as PMREMGenerator, st as require_react, t as PerformanceMonitor, tt as Vector2, w as LinearFilter } from "../_libs/@react-three/drei+[...].mjs";
-import { A as spin, C as rememberedMotion, D as setGrabStill, E as setExportGlb, I as toolTouch, L as tumble, M as spinSnapshot, N as stepBrewPhysics, O as setRayView, P as stepTumble, R as viewportForFrame, S as punchStrength, T as setEnterAR, _ as masterMix, a as computeBrew, b as publishFrameDebug, c as flingVel, d as hslToHex, f as ingredientById, g as localGravity, i as blendSensors, j as spinFrames, k as sloshGrid, l as frameFor, m as liveSensor, o as decaySensor, p as liveBodies, r as SLOSH_AMP, s as effectsFor, u as frameMode, v as physicsSnapshot, w as remoteSensor, x as punch, y as poseNow } from "./app-BzIaw2Tf.mjs";
+import { A as sloshGrid, C as punchStrength, D as setExportGlb, E as setEnterAR, F as stepTumble, L as toolTouch, M as spinFrames, N as spinSnapshot, O as setGrabStill, P as stepBrewPhysics, R as tumble, S as punch, T as remoteSensor, _ as localGravity, a as computeBrew, b as poseNow, c as flingVel, d as frameMode, f as hslToHex, h as liveSensor, i as blendSensors, j as spin, k as setRayView, l as frameFor, m as liveBodies, o as decaySensor, p as ingredientById, r as SLOSH_AMP, s as effectsFor, u as frameMargin, v as masterMix, w as rememberedMotion, x as publishFrameDebug, y as physicsSnapshot, z as viewportForFrame } from "./app-BbvnbAT-.mjs";
 import { a as RenderPass, i as UnrealBloomPass, n as RoomEnvironment, o as EffectComposer, r as BokehPass } from "../_libs/three.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/scene-rycsimn8.js
+//#region node_modules/.nitro/vite/services/ssr/assets/scene-B9oOaNEY.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var potPoints = (() => {
@@ -1042,15 +1042,15 @@ function applyFrame(camera, width, height, aspect) {
 		framed.manual = true;
 		framed.updateProjectionMatrix();
 	}
+	return frame;
 }
 function FrameCamera() {
 	const { camera, size, gl } = useThree();
 	useFrame(() => {
 		const canvas = gl.domElement;
 		const view = viewportForFrame(size.width, size.height, canvas.clientWidth, canvas.clientHeight, window.innerWidth, window.innerHeight);
-		const aspectW = canvas.clientWidth >= 32 ? canvas.clientWidth : size.width || view.width;
-		const aspectH = canvas.clientHeight >= 32 ? canvas.clientHeight : size.height || view.height;
-		applyFrame(camera, view.width, view.height, aspectW / Math.max(aspectH, 1));
+		const aspect = view.width / Math.max(view.height, 1);
+		const frame = applyFrame(camera, view.width, view.height, aspect);
 		const persp = camera;
 		publishFrameDebug({
 			innerWidth: window.innerWidth,
@@ -1064,7 +1064,8 @@ function FrameCamera() {
 				persp.position.z
 			],
 			fov: persp.fov,
-			mode: frameMode(view.width, view.height)
+			mode: frameMode(view.width, view.height),
+			margin: frameMargin(frame, aspect)
 		});
 	});
 	return null;
@@ -1093,9 +1094,8 @@ function CauldronScene({ drops, vibe, form, quality, reduced }) {
 		onCreated: ({ gl, camera }) => {
 			gl.setClearColor("#110e0c", 1);
 			const view = viewportForFrame(gl.domElement.clientWidth, gl.domElement.clientHeight, gl.domElement.clientWidth, gl.domElement.clientHeight, window.innerWidth, window.innerHeight);
-			const aspectW = gl.domElement.clientWidth || view.width;
-			const aspectH = gl.domElement.clientHeight || view.height;
-			applyFrame(camera, view.width, view.height, aspectW / Math.max(aspectH, 1));
+			const aspect = view.width / Math.max(view.height, 1);
+			applyFrame(camera, view.width, view.height, aspect);
 			gl.outputColorSpace = SRGBColorSpace;
 			gl.toneMapping = fx.toneMapping === "AgX" ? 6 : 4;
 			gl.toneMappingExposure = fx.master ? 1 : .92;

@@ -14,7 +14,7 @@ import { rememberedMotion, spin, spinFrames, spinSnapshot, poseNow, stepTumble, 
 import type { Quality } from "./quality";
 import { effectsFor, type FxProfile } from "./fx";
 import { liveBodies, localGravity, physicsSnapshot, setRayView, SLOSH_AMP, sloshGrid, stepBrewPhysics } from "./physics";
-import { frameFor, frameMode, publishFrameDebug, viewportForFrame } from "./frame";
+import { frameFor, frameMargin, frameMode, publishFrameDebug, viewportForFrame } from "./frame";
 
 const potPoints = (() => {
   const pts: THREE.Vector2[] = [];
@@ -979,6 +979,7 @@ function applyFrame(camera: THREE.Camera, width: number, height: number, aspect:
     framed.manual = true;
     framed.updateProjectionMatrix();
   }
+  return frame;
 }
 
 function FrameCamera() {
@@ -993,9 +994,8 @@ function FrameCamera() {
       window.innerWidth,
       window.innerHeight,
     );
-    const aspectW = canvas.clientWidth >= 32 ? canvas.clientWidth : size.width || view.width;
-    const aspectH = canvas.clientHeight >= 32 ? canvas.clientHeight : size.height || view.height;
-    applyFrame(camera, view.width, view.height, aspectW / Math.max(aspectH, 1));
+    const aspect = view.width / Math.max(view.height, 1);
+    const frame = applyFrame(camera, view.width, view.height, aspect);
     const persp = camera as THREE.PerspectiveCamera;
     publishFrameDebug({
       innerWidth: window.innerWidth,
@@ -1006,6 +1006,7 @@ function FrameCamera() {
       position: [persp.position.x, persp.position.y, persp.position.z],
       fov: persp.fov,
       mode: frameMode(view.width, view.height),
+      margin: frameMargin(frame, aspect),
     });
   });
   return null;
@@ -1043,9 +1044,8 @@ export function CauldronScene({
           window.innerWidth,
           window.innerHeight,
         );
-        const aspectW = gl.domElement.clientWidth || view.width;
-        const aspectH = gl.domElement.clientHeight || view.height;
-        applyFrame(camera, view.width, view.height, aspectW / Math.max(aspectH, 1));
+        const aspect = view.width / Math.max(view.height, 1);
+        applyFrame(camera, view.width, view.height, aspect);
         gl.outputColorSpace = THREE.SRGBColorSpace;
         gl.toneMapping = fx.toneMapping === "AgX" ? THREE.AgXToneMapping : THREE.ACESFilmicToneMapping;
         gl.toneMappingExposure = fx.master ? 1.0 : 0.92;
