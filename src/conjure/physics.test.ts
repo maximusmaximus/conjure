@@ -3,7 +3,9 @@ import { test } from "node:test";
 import { effectsFor, materialNote } from "./fx.ts";
 import { masterQuality, qualityFromTier } from "./quality.ts";
 import {
+  BOUNCE_KICK,
   GRAVITY,
+  RESTITUTION,
   liveBodies,
   localGravity,
   pushBody,
@@ -27,6 +29,7 @@ function body(partial: Partial<PhysBody> & Pick<PhysBody, "id">): PhysBody {
     age: 0,
     life: 10,
     held: false,
+    impact: 0,
     color: "#ffffff",
     hue: 0,
     ...partial,
@@ -40,6 +43,34 @@ test("upright gravity points down in local space", () => {
   assert.ok(Math.abs(g[2]) < 1e-6);
   const tilted = localGravity(0.4, 0, 0);
   assert.ok(Math.abs(tilted[2]) > 0.5);
+});
+
+test("bounce restitution off the floor, the wall, and another body", () => {
+  resetPhysics(9);
+  pushBody(body({ id: "floor", y: 0.2, vy: -4, r: 0.1 }));
+  stepBodies(0.016, [0, 0, 0]);
+  const floorHit = liveBodies()[0];
+  assert.ok(floorHit.vy >= BOUNCE_KICK - 0.001);
+  assert.ok(floorHit.vy <= Math.max(4 * RESTITUTION, BOUNCE_KICK) + 0.05);
+  assert.equal(floorHit.impact, 1);
+
+  resetPhysics(10);
+  pushBody(body({ id: "wall", x: 2, y: 0.9, vx: 4, r: 0.1 }));
+  stepBodies(0.016, [0, 0, 0]);
+  const wallHit = liveBodies()[0];
+  assert.ok(wallHit.vx < 0);
+  assert.ok(Math.abs(wallHit.vx) >= 4 * RESTITUTION - 0.15);
+  assert.equal(wallHit.impact, 1);
+
+  resetPhysics(11);
+  pushBody(body({ id: "a", x: 0, y: 1, vx: 2, r: 0.2 }));
+  pushBody(body({ id: "b", x: 0.3, y: 1, vx: -2, r: 0.2 }));
+  stepBodies(0.016, [0, 0, 0]);
+  const [left, right] = liveBodies();
+  const apart = right.vx - left.vx;
+  assert.ok(apart > 0.5);
+  assert.equal(left.impact, 1);
+  assert.equal(right.impact, 1);
 });
 
 test("a body falls, hits the floor, and bounces", () => {

@@ -24,6 +24,8 @@ export const spin = {
 };
 
 const MAX = 8;
+/** Pulls the pot and ladle back to an upright rest. */
+const SPRING = 1.15;
 
 function clamp(n: number, a: number, b: number): number {
   return Math.max(a, Math.min(b, n));
@@ -51,23 +53,44 @@ export function impulse(x: number, y: number, z: number): void {
   spin.vz = clamp(spin.vz + z, -MAX, MAX);
 }
 
-export function stepSpin(dt: number): void {
+type SpinPose = { x: number; y: number; z: number; vx: number; vy: number; vz: number };
+
+/** One eased step. A spring returns the pose to rest so a knock cannot stick. */
+export function integrateSpin(pose: SpinPose, damp: number, dt: number): { before: number; after: number } {
   const d = Math.min(Math.max(dt, 0), 0.1);
-  spin.x += spin.vx * d;
-  spin.y += spin.vy * d;
-  spin.z += spin.vz * d;
-  const before = Math.hypot(spin.vx, spin.vy, spin.vz);
-  const keep = Math.exp(-d * spin.damping);
-  spin.vx *= keep;
-  spin.vy *= keep;
-  spin.vz *= keep;
-  const after = Math.hypot(spin.vx, spin.vy, spin.vz);
-  spin.spins += ((before + after) * 0.5 * d) / (Math.PI * 2);
-  if (after < 0.02) {
-    spin.vx = 0;
-    spin.vy = 0;
-    spin.vz = 0;
+  pose.vx += -pose.x * SPRING * d;
+  pose.vy += -pose.y * SPRING * d;
+  pose.vz += -pose.z * SPRING * d;
+  pose.vx = clamp(pose.vx, -MAX, MAX);
+  pose.vy = clamp(pose.vy, -MAX, MAX);
+  pose.vz = clamp(pose.vz, -MAX, MAX);
+  pose.x += pose.vx * d;
+  pose.y += pose.vy * d;
+  pose.z += pose.vz * d;
+  pose.x = clamp(pose.x, -Math.PI * 2, Math.PI * 2);
+  pose.y = clamp(pose.y, -Math.PI * 2, Math.PI * 2);
+  pose.z = clamp(pose.z, -Math.PI * 2, Math.PI * 2);
+  const before = Math.hypot(pose.vx, pose.vy, pose.vz);
+  const keep = Math.exp(-d * damp);
+  pose.vx *= keep;
+  pose.vy *= keep;
+  pose.vz *= keep;
+  const after = Math.hypot(pose.vx, pose.vy, pose.vz);
+  const settled = Math.hypot(pose.x, pose.y, pose.z) < 0.03 && after < 0.05;
+  if (settled) {
+    pose.x = 0;
+    pose.y = 0;
+    pose.z = 0;
+    pose.vx = 0;
+    pose.vy = 0;
+    pose.vz = 0;
   }
+  return { before, after: settled ? 0 : after };
+}
+
+export function stepSpin(dt: number): void {
+  const moved = integrateSpin(spin, spin.damping, dt);
+  spin.spins += ((moved.before + moved.after) * 0.5 * Math.min(Math.max(dt, 0), 0.1)) / (Math.PI * 2);
 }
 
 export function spinSnapshot(): SpinNote {
@@ -110,23 +133,19 @@ export type SpinFrame = { t: number; x: number; y: number; z: number; speed: num
 /** Pose samples of a captured spin as it eases out. Used by the GLB clip. */
 export function spinFrames(note: SpinNote, seconds = 6, steps = 24): SpinFrame[] {
   const frames: SpinFrame[] = [];
-  let x = note.angle[0];
-  let y = note.angle[1];
-  let z = note.angle[2];
-  let vx = note.velocity[0];
-  let vy = note.velocity[1];
-  let vz = note.velocity[2];
+  const pose = {
+    x: note.angle[0],
+    y: note.angle[1],
+    z: note.angle[2],
+    vx: note.velocity[0],
+    vy: note.velocity[1],
+    vz: note.velocity[2],
+  };
   const damp = note.damping || 1.7;
   const dt = seconds / steps;
   for (let i = 0; i <= steps; i += 1) {
-    frames.push({ t: i * dt, x, y, z, speed: Math.hypot(vx, vy, vz) });
-    x += vx * dt;
-    y += vy * dt;
-    z += vz * dt;
-    const keep = Math.exp(-dt * damp);
-    vx *= keep;
-    vy *= keep;
-    vz *= keep;
+    frames.push({ t: i * dt, x: pose.x, y: pose.y, z: pose.z, speed: Math.hypot(pose.vx, pose.vy, pose.vz) });
+    integrateSpin(pose, damp, dt);
   }
   return frames;
 }

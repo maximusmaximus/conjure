@@ -1,6 +1,6 @@
-import { at as require_jsx_runtime } from "../_libs/@react-three/drei+[...].mjs";
-import { n as PageFrame } from "./app-36nkK2us.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/credits-Er68fzRH.js
+import { ot as require_jsx_runtime } from "../_libs/@react-three/drei+[...].mjs";
+import { n as PageFrame } from "./app-DAlAXD0B.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/credits-C8NwEPas.js
 var import_jsx_runtime = require_jsx_runtime();
 function CreditsPage() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(PageFrame, {

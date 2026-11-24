@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { AdaptiveDpr, ContactShadows, PerformanceMonitor } from "@react-three/drei";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
@@ -13,7 +13,8 @@ import { flingVel } from "./fling";
 import { rememberedMotion, spin, spinFrames, spinSnapshot } from "./spin";
 import type { Quality } from "./quality";
 import { effectsFor, type FxProfile } from "./fx";
-import { liveBodies, localGravity, physicsSnapshot, setRayView, sloshGrid, stepBrewPhysics } from "./physics";
+import { liveBodies, localGravity, physicsSnapshot, setRayView, SLOSH_AMP, sloshGrid, stepBrewPhysics } from "./physics";
+import { frameFor } from "./frame";
 
 const potPoints = (() => {
   const pts: THREE.Vector2[] = [];
@@ -122,11 +123,15 @@ function BrewMesh({
   const compilePotion = useCallback(
     (shader: { uniforms: Record<string, { value: unknown }>; vertexShader: string }) => {
       shader.uniforms.uSlosh = liquidUniforms.uSlosh;
+      shader.uniforms.uTime = liquidUniforms.uTime;
       shader.vertexShader = shader.vertexShader
-        .replace("#include <uv_pars_vertex>", "#include <uv_pars_vertex>\nuniform sampler2D uSlosh;")
+        .replace(
+          "#include <uv_pars_vertex>",
+          "#include <uv_pars_vertex>\nuniform sampler2D uSlosh;\nuniform float uTime;",
+        )
         .replace(
           "#include <begin_vertex>",
-          "#include <begin_vertex>\nfloat sloshH = texture2D(uSlosh, uv).r * 2.0 - 1.0;\ntransformed.z += sloshH * 0.28;",
+          "#include <begin_vertex>\nfloat sloshH = texture2D(uSlosh, uv).r * 2.0 - 1.0;\nfloat rr = length(uv - 0.5);\nfloat rings = sin(rr * 48.0 - uTime * 6.2);\ntransformed.z += clamp(sloshH * 0.5 + rings * 0.18, -0.2, 0.48);",
         );
     },
     [liquidUniforms],
@@ -183,11 +188,15 @@ function BrewMesh({
       glow.current.intensity = masterMix.freeze ? 3 : 7 + flashT * 20;
     }
     if (brewGroup.current) {
+      brewGroup.current.position.set(0, 0, 0);
       brewGroup.current.rotation.set(spin.x + leanX, spin.y, spin.z + leanZ);
     }
-    if (pot.current && !masterMix.freeze) {
-      pot.current.rotation.y = spin.y;
-      pot.current.rotation.z = Math.sin(spin.z) * 0.12 + leanZ * 0.25;
+    if (pot.current) {
+      pot.current.position.set(0, 0, 0);
+      if (!masterMix.freeze) {
+        pot.current.rotation.y = spin.y;
+        pot.current.rotation.z = Math.sin(spin.z) * 0.12 + leanZ * 0.25;
+      }
     }
     stepBrewPhysics(dt, {
       gravity: localGravity(spin.x + leanX, spin.y, spin.z + leanZ),
@@ -204,7 +213,7 @@ function BrewMesh({
       for (let x = 0; x < size; x += 1) {
         const gx = Math.min(n - 1, (x * n) / size) | 0;
         const h = grid.h[gy * n + gx] ?? 0;
-        const byte = Math.max(0, Math.min(255, Math.round(((h + 0.48) / 0.96) * 255)));
+        const byte = Math.max(0, Math.min(255, Math.round((h / SLOSH_AMP + 1) * 0.5 * 255)));
         const i = (y * size + x) * 4;
         data[i] = byte;
         data[i + 1] = byte;
@@ -545,10 +554,16 @@ function paintBodies(
     } else {
       dummy.position.set(body.x, body.y, body.z);
       const fade = kind === "spark" ? Math.max(0.2, 1 - body.age / body.life) : 1;
+      const hit = body.impact || 0;
       const size = body.r * (kind === "charm" ? 3.4 : 2.8) * (body.held ? 1.28 : 1) * fade;
-      dummy.scale.setScalar(size);
+      dummy.scale.set(size * (1 + hit * 0.45), size * (1 - hit * 0.42), size * (1 + hit * 0.45));
       dummy.rotation.set(body.age * 2.2, body.hue * 0.02, body.age * 0.8);
       tint.set(body.color);
+      if (hit > 0) {
+        tint.r += (1 - tint.r) * hit;
+        tint.g += (1 - tint.g) * hit;
+        tint.b += (1 - tint.b) * hit;
+      }
       mesh.setColorAt(i, tint);
     }
     dummy.updateMatrix();
@@ -577,12 +592,16 @@ function PhysVis({ fx }: { fx: FxProfile }) {
         }
         mesh.visible = true;
         mesh.position.set(body.x, body.y, body.z);
-        mesh.scale.setScalar(body.r * 3.6 * (body.held ? 1.3 : 1));
+        const hit = body.impact || 0;
+        const s = body.r * 3.6 * (body.held ? 1.3 : 1);
+        mesh.scale.set(s * (1 + hit * 0.36), s * (1 - hit * 0.42), s * (1 + hit * 0.36));
         mesh.rotation.x += 0.01;
         mesh.rotation.y += 0.016;
         const mat = mesh.material as THREE.MeshStandardMaterial & { attenuationColor?: THREE.Color };
         mat.color.set(body.color);
-        mat.emissive.set(body.color);
+        mat.emissive.set(hit > 0.2 ? "#fff6df" : body.color);
+        const base = fx.charmTransmission > 0 ? fx.emissiveIntensity * 0.65 : fx.emissiveIntensity * 0.45;
+        mat.emissiveIntensity = base * (1 + hit * 2.8);
         if (mat.attenuationColor) mat.attenuationColor.set(body.color);
       }
     }
@@ -722,12 +741,26 @@ function Bridges({ root, fx }: { root: RefObject<THREE.Group | null>; fx: FxProf
 
 const liquidVert = /* glsl */ `
   varying vec2 vUv;
+  varying vec3 vN;
+  varying float vWave;
   uniform sampler2D uSlosh;
+  uniform float uTime;
+  uniform float uEnergy;
   void main() {
     vUv = uv;
+    vec2 c = uv - 0.5;
+    float r = length(c);
+    float hTex = texture2D(uSlosh, uv).r * 2.0 - 1.0;
+    float rings = sin(r * 48.0 - uTime * 6.2);
+    float rings2 = sin(r * 22.0 - uTime * 3.1 + 1.1);
+    float amp = 0.16 + uEnergy * 0.1;
+    float disp = clamp(hTex * 0.52 + rings * amp + rings2 * amp * 0.65, -0.22, 0.48);
     vec3 p = position;
-    float h = texture2D(uSlosh, uv).r * 2.0 - 1.0;
-    p.z += h * 0.28;
+    p.z += disp;
+    float slope = cos(r * 48.0 - uTime * 6.2) * 48.0 * amp + cos(r * 22.0 - uTime * 3.1 + 1.1) * 22.0 * amp * 0.65;
+    vec2 dir = r > 0.0008 ? c / r : vec2(0.0);
+    vN = normalize(vec3(-dir.x * slope, -dir.y * slope, 1.0));
+    vWave = rings * 0.5 + 0.5;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
   }
 `;
@@ -735,17 +768,28 @@ const liquidVert = /* glsl */ `
 const liquidFrag = /* glsl */ `
   precision highp float;
   varying vec2 vUv;
+  varying vec3 vN;
+  varying float vWave;
   uniform float uTime;
   uniform vec3 uColor;
   uniform float uEnergy;
   void main() {
     vec2 p = vUv - 0.5;
     float r = length(p);
-    float rip = sin(r * 28.0 - uTime * 3.0) * 0.5 + 0.5;
-    float rim = smoothstep(0.5, 0.28, r);
-    vec3 col = uColor * (0.85 + 0.65 * rip * uEnergy);
-    col += vec3(1.0, 0.86, 0.7) * pow(rip, 4.0) * 0.25;
-    float alpha = rim * 0.92;
+    float rings = sin(r * 46.0 - uTime * 6.0) * 0.5 + 0.5;
+    float rings2 = sin(r * 20.0 - uTime * 2.7) * 0.5 + 0.5;
+    vec3 n = normalize(vN);
+    vec3 lightDir = normalize(vec3(0.25, 0.45, 1.0));
+    vec3 viewDir = vec3(0.0, 0.15, 1.0);
+    float ndl = clamp(dot(n, lightDir), 0.0, 1.0);
+    float spec = pow(clamp(dot(n, normalize(lightDir + viewDir)), 0.0, 1.0), 28.0);
+    float rim = smoothstep(0.5, 0.22, r);
+    vec3 col = uColor * (0.42 + 0.85 * rings * (0.45 + uEnergy) + 0.35 * rings2);
+    col += uColor * ndl * 0.45;
+    col += vec3(1.0, 0.94, 0.82) * spec * (0.85 + uEnergy);
+    col += vec3(1.0, 0.86, 0.62) * pow(rings, 3.0) * 0.55;
+    col += vec3(1.0, 0.95, 0.85) * vWave * rings2 * 0.2;
+    float alpha = rim * 0.96;
     if (alpha < 0.02) discard;
     gl_FragColor = vec4(col, alpha);
   }
@@ -827,7 +871,8 @@ function Post({ fx }: { fx: FxProfile }) {
       next.addPass(new UnrealBloomPass(new THREE.Vector2(size.width, size.height), fx.bloom, 0.22, 0.94));
     }
     if (fx.dof) {
-      next.addPass(new BokehPass(scene, camera, { focus: 3.6, aperture: 0.00018, maxblur: 0.005 }));
+      const dist = camera.position.distanceTo(new THREE.Vector3(0, 0.7, 0));
+      next.addPass(new BokehPass(scene, camera, { focus: dist, aperture: 0.00015, maxblur: 0.0045 }));
     }
     next.setPixelRatio(gl.getPixelRatio());
     next.setSize(size.width, size.height);
@@ -849,6 +894,41 @@ function Post({ fx }: { fx: FxProfile }) {
     }
     current.render();
   }, 1);
+  return null;
+}
+
+function FrameCamera() {
+  const { camera, size, gl } = useThree();
+  useLayoutEffect(() => {
+    const width = size.width || gl.domElement.clientWidth || 1;
+    const height = size.height || gl.domElement.clientHeight || 1;
+    const frame = frameFor(width, height);
+    camera.position.set(frame.position[0], frame.position[1], frame.position[2]);
+    camera.lookAt(frame.lookAt[0], frame.lookAt[1], frame.lookAt[2]);
+    if (camera instanceof THREE.PerspectiveCamera) {
+      camera.fov = frame.fov;
+      camera.updateProjectionMatrix();
+    }
+  }, [camera, gl, size.width, size.height]);
+  useEffect(() => {
+    const apply = () => {
+      const width = gl.domElement.clientWidth || window.innerWidth;
+      const height = gl.domElement.clientHeight || window.innerHeight;
+      const frame = frameFor(width, height);
+      camera.position.set(frame.position[0], frame.position[1], frame.position[2]);
+      camera.lookAt(frame.lookAt[0], frame.lookAt[1], frame.lookAt[2]);
+      if (camera instanceof THREE.PerspectiveCamera) {
+        camera.fov = frame.fov;
+        camera.updateProjectionMatrix();
+      }
+    };
+    window.addEventListener("resize", apply);
+    window.addEventListener("orientationchange", apply);
+    return () => {
+      window.removeEventListener("resize", apply);
+      window.removeEventListener("orientationchange", apply);
+    };
+  }, [camera, gl]);
   return null;
 }
 
@@ -875,13 +955,20 @@ export function CauldronScene({
       gl={{ antialias: quality.tier !== "low", alpha: false, powerPreference: "high-performance", preserveDrawingBuffer: true }}
       onCreated={({ gl, camera }) => {
         gl.setClearColor("#110e0c", 1);
-        camera.lookAt(0, 0.95, 0);
+        const frame = frameFor(window.innerWidth, window.innerHeight);
+        camera.position.set(frame.position[0], frame.position[1], frame.position[2]);
+        camera.lookAt(frame.lookAt[0], frame.lookAt[1], frame.lookAt[2]);
+        if (camera instanceof THREE.PerspectiveCamera) {
+          camera.fov = frame.fov;
+          camera.updateProjectionMatrix();
+        }
         gl.outputColorSpace = THREE.SRGBColorSpace;
         gl.toneMapping = fx.toneMapping === "AgX" ? THREE.AgXToneMapping : THREE.ACESFilmicToneMapping;
         gl.toneMappingExposure = fx.master ? 1.0 : 0.92;
       }}
     >
       <Grade fx={fx} />
+      <FrameCamera />
       <RoomEnv />
       <PerformanceMonitor>
         <AdaptiveDpr />

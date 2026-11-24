@@ -1,6 +1,12 @@
 /** Tuned rigid bodies for charms and sparks. No WASM. Deterministic from a seed. */
 
 export const GRAVITY = 9.8;
+/** Outgoing speed over incoming speed. High enough that a hit reads. */
+export const RESTITUTION = 0.72;
+/** Slowest upward speed that still looks like a bounce. */
+export const BOUNCE_KICK = 1.35;
+/** Height clamp for the liquid grid. The surface stays inside the bowl. */
+export const SLOSH_AMP = 0.92;
 
 /** World-down gravity, expressed in the brew's local axes (Euler XYZ). */
 export function localGravity(rx: number, ry: number, rz: number, g = GRAVITY): [number, number, number] {
@@ -41,6 +47,8 @@ export type PhysBody = {
   age: number;
   life: number;
   held: boolean;
+  /** 1 on a hit, fading to 0. Drives squash and the flash. */
+  impact: number;
   color: string;
   hue: number;
 };
@@ -69,6 +77,18 @@ let slosh: Slosh = createSlosh(16);
 let heldId: string | null = null;
 let rayView: ((x: number, y: number) => Ray | null) | null = null;
 let seenBurst = -1;
+let lastTick = 0;
+
+function tickImpact(): void {
+  const now = typeof performance !== "undefined" ? performance.now() : 0;
+  if (now - lastTick < 80) return;
+  lastTick = now;
+  try {
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") navigator.vibrate(12);
+  } catch {
+    /* this browser does not vibrate */
+  }
+}
 
 function mulberry(): number {
   rngState = (rngState + 0x6d2b79f5) >>> 0;
@@ -159,6 +179,7 @@ export function syncCharms(drops: { id: string; color: string; hue: number }[]):
       age: 0,
       life: 1e6,
       held: false,
+      impact: 0,
       color: drop.color,
       hue: drop.hue,
     });
@@ -187,6 +208,7 @@ export function noteBurst(at: number, color: string, count: number): void {
       age: 0,
       life: 1.5 + mulberry() * 0.7,
       held: false,
+      impact: 0,
       color,
       hue: 40,
     });
@@ -210,12 +232,19 @@ export function stepBodies(dt: number, gravity: [number, number, number]): void 
     body.y += body.vy * d;
     body.z += body.vz * d;
     body.age += d;
+    body.impact = Math.max(0, (body.impact || 0) - d * 3.4);
     const floor = FLOOR + body.r;
     if (body.y < floor) {
       body.y = floor;
-      if (body.vy < 0) body.vy = -body.vy * 0.42;
-      body.vx *= 0.86;
-      body.vz *= 0.86;
+      if (body.vy < -0.55) {
+        body.vy = Math.max(-body.vy * RESTITUTION, BOUNCE_KICK);
+        body.impact = 1;
+        tickImpact();
+      } else if (body.vy < 0) {
+        body.vy = 0;
+      }
+      body.vx *= 0.8;
+      body.vz *= 0.8;
     }
     const horiz = Math.hypot(body.x, body.z);
     const limit = Math.max(0.05, wallRadius(body.y) - body.r);
@@ -225,9 +254,20 @@ export function stepBodies(dt: number, gravity: [number, number, number]): void 
       body.x = nx * limit;
       body.z = nz * limit;
       const vn = body.vx * nx + body.vz * nz;
-      if (vn > 0) {
-        body.vx -= 1.45 * vn * nx;
-        body.vz -= 1.45 * vn * nz;
+      if (vn > 0.35) {
+        body.vx -= (1 + RESTITUTION) * vn * nx;
+        body.vz -= (1 + RESTITUTION) * vn * nz;
+        const kick = Math.hypot(body.vx, body.vz);
+        if (kick < 0.9) {
+          body.vx = -nx * 0.9;
+          body.vz = -nz * 0.9;
+        }
+        body.impact = 1;
+        tickImpact();
+        pokeSlosh(body.x / 1.5 + 0.5, body.z / 1.5 + 0.5, Math.min(1.4, vn * 0.55));
+      } else if (vn > 0) {
+        body.vx -= (1 + RESTITUTION) * vn * nx;
+        body.vz -= (1 + RESTITUTION) * vn * nz;
       }
     }
   }
@@ -257,7 +297,7 @@ export function stepBodies(dt: number, gravity: [number, number, number]): void 
       }
       const rel = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny + (b.vz - a.vz) * nz;
       if (rel >= 0) continue;
-      const impulse = -(1.55 * rel) * 0.5;
+      const impulse = -((1 + RESTITUTION) * rel) * 0.5;
       if (!a.held) {
         a.vx -= impulse * nx;
         a.vy -= impulse * ny;
@@ -267,6 +307,12 @@ export function stepBodies(dt: number, gravity: [number, number, number]): void 
         b.vx += impulse * nx;
         b.vy += impulse * ny;
         b.vz += impulse * nz;
+      }
+      if (rel < -0.45) {
+        a.impact = 1;
+        b.impact = 1;
+        tickImpact();
+        pokeSlosh((a.x + b.x) * 0.5 / 1.5 + 0.5, (a.z + b.z) * 0.5 / 1.5 + 0.5, Math.min(1.2, -rel * 0.4));
       }
     }
   }
@@ -303,30 +349,47 @@ export function stepSlosh(dt: number, tiltX: number, tiltZ: number, shake: numbe
         count += 1;
       }
       const avg = count ? sum / count : 0;
-      const tilt = (x / (n - 1) - 0.5) * tiltZ * 0.4 + (y / (n - 1) - 0.5) * tiltX * 0.4;
-      const noise = shake > 0.35 ? (mulberry() - 0.5) * shake * 0.12 : 0;
+      const tilt = (x / (n - 1) - 0.5) * tiltZ * 1.15 + (y / (n - 1) - 0.5) * tiltX * 1.15;
+      const noise = shake > 0.2 ? (mulberry() - 0.5) * shake * 0.28 : 0;
       slosh.v[i] += (avg - slosh.h[i] + tilt + noise) * spring * d;
-      slosh.v[i] *= Math.exp(-2.6 * d);
+      slosh.v[i] *= Math.exp(-1.7 * d);
     }
   }
+  const tiltMag = Math.hypot(tiltX, tiltZ);
+  if (tiltMag > 0.06) {
+    pokeSlosh(
+      0.5 + Math.max(-0.34, Math.min(0.34, tiltZ * 0.5)),
+      0.5 + Math.max(-0.34, Math.min(0.34, tiltX * 0.5)),
+      tiltMag * 0.34,
+    );
+  }
+  if (shake > 0.12) pokeSlosh(0.5, 0.5, shake * 0.48);
   for (let i = 0; i < slosh.h.length; i += 1) {
-    slosh.h[i] = Math.max(-0.48, Math.min(0.48, slosh.h[i] + slosh.v[i] * d));
+    slosh.h[i] = Math.max(-SLOSH_AMP, Math.min(SLOSH_AMP, slosh.h[i] + slosh.v[i] * d));
   }
 }
 
 export function pokeSlosh(u: number, v: number, amount: number): void {
   const n = slosh.n;
-  const x = Math.max(0, Math.min(n - 1, Math.round(u * (n - 1))));
-  const y = Math.max(0, Math.min(n - 1, Math.round(v * (n - 1))));
-  slosh.v[y * n + x] += amount;
+  const cx = u * (n - 1);
+  const cy = v * (n - 1);
+  const radius = Math.max(2.4, n * 0.22);
+  for (let y = 0; y < n; y += 1) {
+    for (let x = 0; x < n; x += 1) {
+      const dist = Math.hypot(x - cx, y - cy);
+      if (dist > radius) continue;
+      const fall = Math.cos((dist / radius) * Math.PI * 0.5);
+      slosh.v[y * n + x] += amount * fall;
+    }
+  }
 }
 
 function splashBodies(): void {
   for (const body of bodies) {
     if (body.held) continue;
     const floor = FLOOR + body.r;
-    if (body.y <= floor + 0.03 && Math.abs(body.vy) > 0.4) {
-      pokeSlosh(body.x / 1.5 + 0.5, body.z / 1.5 + 0.5, Math.min(1.1, Math.abs(body.vy) * 0.32));
+    if (body.y <= floor + 0.04 && body.vy > 0.8 && body.impact > 0.6) {
+      pokeSlosh(body.x / 1.5 + 0.5, body.z / 1.5 + 0.5, Math.min(1.6, body.vy * 0.7));
     }
   }
 }

@@ -93,6 +93,20 @@ export function FlatBrew({
       ctx.fill();
       ctx.globalAlpha = 1;
       ctx.save();
+      ctx.translate(cx, cy - radius * 0.05);
+      ctx.rotate(spin.y);
+      ctx.strokeStyle = "rgba(255,246,223,0.9)";
+      ctx.lineWidth = Math.max(2, radius * 0.035);
+      for (let ring = 1; ring <= 3; ring += 1) {
+        const wob = Math.sin(time * 5.5 - ring) * (0.04 + wave * 0.35);
+        const rx = Math.max(2, radius * (0.22 * ring + wob));
+        const ry = Math.max(1, radius * (0.07 * ring + wob * 0.35));
+        ctx.beginPath();
+        ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+      ctx.save();
       ctx.translate(cx, cy - radius * 0.15);
       ctx.rotate(spin.y);
       ctx.strokeStyle = "#fff6df";
@@ -110,11 +124,15 @@ export function FlatBrew({
         const fade = body.kind === "spark" ? Math.max(0, 1 - body.age / body.life) : 0.95;
         ctx.globalAlpha = fade;
         ctx.fillStyle = body.color;
+        const squash = body.impact || 0;
+        const rad = Math.max(4, body.r * radius * 1.6);
         ctx.beginPath();
-        ctx.arc(
+        ctx.ellipse(
           cx + body.x * radius * 1.15,
           cy - body.y * radius * 0.48,
-          Math.max(4, body.r * radius * 1.6),
+          rad * (1 + squash * 0.35),
+          rad * (1 - squash * 0.4),
+          0,
           0,
           Math.PI * 2,
         );

@@ -1,12 +1,12 @@
 import { o as __toESM } from "../_runtime.mjs";
-import { at as require_jsx_runtime, ot as require_react } from "../_libs/@react-three/drei+[...].mjs";
+import { ot as require_jsx_runtime, st as require_react } from "../_libs/@react-three/drei+[...].mjs";
 import { y as Link } from "../_libs/@tanstack/react-router+[...].mjs";
-import { _ as cleanName, a as cleanHandle, c as emptyProgress, d as loadProgress, f as nextStepId, g as xpToNext, h as walletUnlocked, i as award, l as loadBoardPrefs, m as saveProgress, o as currentTip, p as saveBoardPrefs, r as LEVELS, s as dismissTip, u as loadDismissedTips, v as resolveVotes } from "./router-BTLI5VI2.mjs";
+import { _ as cleanName, a as cleanHandle, c as emptyProgress, d as loadProgress, f as nextStepId, g as xpToNext, h as walletUnlocked, i as award, l as loadBoardPrefs, m as saveProgress, o as currentTip, p as saveBoardPrefs, r as LEVELS, s as dismissTip, u as loadDismissedTips, v as resolveVotes } from "./router-CYX8YvgB.mjs";
 import { t as require_xeroemoji } from "../_libs/xeroemoji.mjs";
 import { Ht as parseAbiItem, n as getPublicClient, pn as erc721Abi, t as createConfig } from "../_libs/@wagmi/core+[...].mjs";
 import { i as defineChain, n as custom, r as createWalletClient, t as http } from "../_libs/viem.mjs";
 import { t as create } from "../_libs/zustand.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/app-36nkK2us.js
+//#region node_modules/.nitro/vite/services/ssr/assets/app-DAlAXD0B.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var import_xeroemoji = require_xeroemoji();
@@ -423,6 +423,8 @@ var spin = {
 	spins: 0
 };
 var MAX = 8;
+/** Pulls the pot and ladle back to an upright rest. */
+var SPRING = 1.15;
 function clamp(n, a, b) {
 	return Math.max(a, Math.min(b, n));
 }
@@ -435,23 +437,44 @@ function impulse(x, y, z) {
 	spin.vy = clamp(spin.vy + y, -8, MAX);
 	spin.vz = clamp(spin.vz + z, -8, MAX);
 }
-function stepSpin(dt) {
+/** One eased step. A spring returns the pose to rest so a knock cannot stick. */
+function integrateSpin(pose, damp, dt) {
 	const d = Math.min(Math.max(dt, 0), .1);
-	spin.x += spin.vx * d;
-	spin.y += spin.vy * d;
-	spin.z += spin.vz * d;
-	const before = Math.hypot(spin.vx, spin.vy, spin.vz);
-	const keep = Math.exp(-d * spin.damping);
-	spin.vx *= keep;
-	spin.vy *= keep;
-	spin.vz *= keep;
-	const after = Math.hypot(spin.vx, spin.vy, spin.vz);
-	spin.spins += (before + after) * .5 * d / (Math.PI * 2);
-	if (after < .02) {
-		spin.vx = 0;
-		spin.vy = 0;
-		spin.vz = 0;
+	pose.vx += -pose.x * SPRING * d;
+	pose.vy += -pose.y * SPRING * d;
+	pose.vz += -pose.z * SPRING * d;
+	pose.vx = clamp(pose.vx, -8, MAX);
+	pose.vy = clamp(pose.vy, -8, MAX);
+	pose.vz = clamp(pose.vz, -8, MAX);
+	pose.x += pose.vx * d;
+	pose.y += pose.vy * d;
+	pose.z += pose.vz * d;
+	pose.x = clamp(pose.x, -Math.PI * 2, Math.PI * 2);
+	pose.y = clamp(pose.y, -Math.PI * 2, Math.PI * 2);
+	pose.z = clamp(pose.z, -Math.PI * 2, Math.PI * 2);
+	const before = Math.hypot(pose.vx, pose.vy, pose.vz);
+	const keep = Math.exp(-d * damp);
+	pose.vx *= keep;
+	pose.vy *= keep;
+	pose.vz *= keep;
+	const after = Math.hypot(pose.vx, pose.vy, pose.vz);
+	const settled = Math.hypot(pose.x, pose.y, pose.z) < .03 && after < .05;
+	if (settled) {
+		pose.x = 0;
+		pose.y = 0;
+		pose.z = 0;
+		pose.vx = 0;
+		pose.vy = 0;
+		pose.vz = 0;
 	}
+	return {
+		before,
+		after: settled ? 0 : after
+	};
+}
+function stepSpin(dt) {
+	const moved = integrateSpin(spin, spin.damping, dt);
+	spin.spins += (moved.before + moved.after) * .5 * Math.min(Math.max(dt, 0), .1) / (Math.PI * 2);
 }
 function spinSnapshot() {
 	const speed = Math.hypot(spin.vx, spin.vy, spin.vz);
@@ -505,29 +528,25 @@ function rememberedMotion() {
 /** Pose samples of a captured spin as it eases out. Used by the GLB clip. */
 function spinFrames(note, seconds = 6, steps = 24) {
 	const frames = [];
-	let x = note.angle[0];
-	let y = note.angle[1];
-	let z = note.angle[2];
-	let vx = note.velocity[0];
-	let vy = note.velocity[1];
-	let vz = note.velocity[2];
+	const pose = {
+		x: note.angle[0],
+		y: note.angle[1],
+		z: note.angle[2],
+		vx: note.velocity[0],
+		vy: note.velocity[1],
+		vz: note.velocity[2]
+	};
 	const damp = note.damping || 1.7;
 	const dt = seconds / steps;
 	for (let i = 0; i <= steps; i += 1) {
 		frames.push({
 			t: i * dt,
-			x,
-			y,
-			z,
-			speed: Math.hypot(vx, vy, vz)
+			x: pose.x,
+			y: pose.y,
+			z: pose.z,
+			speed: Math.hypot(pose.vx, pose.vy, pose.vz)
 		});
-		x += vx * dt;
-		y += vy * dt;
-		z += vz * dt;
-		const keep = Math.exp(-dt * damp);
-		vx *= keep;
-		vy *= keep;
-		vz *= keep;
+		integrateSpin(pose, damp, dt);
 	}
 	return frames;
 }
@@ -738,6 +757,12 @@ function materialNote(fx) {
 }
 /** Tuned rigid bodies for charms and sparks. No WASM. Deterministic from a seed. */
 var GRAVITY = 9.8;
+/** Outgoing speed over incoming speed. High enough that a hit reads. */
+var RESTITUTION = .72;
+/** Slowest upward speed that still looks like a bounce. */
+var BOUNCE_KICK = 1.35;
+/** Height clamp for the liquid grid. The surface stays inside the bowl. */
+var SLOSH_AMP = .92;
 /** World-down gravity, expressed in the brew's local axes (Euler XYZ). */
 function localGravity(rx, ry, rz, g = GRAVITY) {
 	const c1 = Math.cos(rx / 2);
@@ -759,7 +784,7 @@ function localGravity(rx, ry, rz, g = GRAVITY) {
 		iw * tz - iy * tx
 	];
 }
-var FLOOR = .42;
+var FLOOR = .74;
 var RIM = 1.18;
 var bodies = [];
 var seed = 1;
@@ -770,6 +795,15 @@ var slosh = createSlosh(16);
 var heldId = null;
 var rayView = null;
 var seenBurst = -1;
+var lastTick = 0;
+function tickImpact() {
+	const now = typeof performance !== "undefined" ? performance.now() : 0;
+	if (now - lastTick < 80) return;
+	lastTick = now;
+	try {
+		if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") navigator.vibrate(12);
+	} catch {}
+}
 function mulberry() {
 	rngState = rngState + 1831565813 >>> 0;
 	let t = rngState;
@@ -844,6 +878,7 @@ function syncCharms(drops) {
 			age: 0,
 			life: 1e6,
 			held: false,
+			impact: 0,
 			color: drop.color,
 			hue: drop.hue
 		});
@@ -871,6 +906,7 @@ function noteBurst(at, color, count) {
 			age: 0,
 			life: 1.5 + mulberry() * .7,
 			held: false,
+			impact: 0,
 			color,
 			hue: 40
 		});
@@ -893,12 +929,17 @@ function stepBodies(dt, gravity) {
 		body.y += body.vy * d;
 		body.z += body.vz * d;
 		body.age += d;
+		body.impact = Math.max(0, (body.impact || 0) - d * 3.4);
 		const floor = FLOOR + body.r;
 		if (body.y < floor) {
 			body.y = floor;
-			if (body.vy < 0) body.vy = -body.vy * .42;
-			body.vx *= .86;
-			body.vz *= .86;
+			if (body.vy < -.55) {
+				body.vy = Math.max(-body.vy * RESTITUTION, BOUNCE_KICK);
+				body.impact = 1;
+				tickImpact();
+			} else if (body.vy < 0) body.vy = 0;
+			body.vx *= .8;
+			body.vz *= .8;
 		}
 		const horiz = Math.hypot(body.x, body.z);
 		const limit = Math.max(.05, wallRadius(body.y) - body.r);
@@ -908,9 +949,19 @@ function stepBodies(dt, gravity) {
 			body.x = nx * limit;
 			body.z = nz * limit;
 			const vn = body.vx * nx + body.vz * nz;
-			if (vn > 0) {
-				body.vx -= 1.45 * vn * nx;
-				body.vz -= 1.45 * vn * nz;
+			if (vn > .35) {
+				body.vx -= 1.72 * vn * nx;
+				body.vz -= 1.72 * vn * nz;
+				if (Math.hypot(body.vx, body.vz) < .9) {
+					body.vx = -nx * .9;
+					body.vz = -nz * .9;
+				}
+				body.impact = 1;
+				tickImpact();
+				pokeSlosh(body.x / 1.5 + .5, body.z / 1.5 + .5, Math.min(1.4, vn * .55));
+			} else if (vn > 0) {
+				body.vx -= 1.72 * vn * nx;
+				body.vz -= 1.72 * vn * nz;
 			}
 		}
 	}
@@ -939,7 +990,7 @@ function stepBodies(dt, gravity) {
 		}
 		const rel = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny + (b.vz - a.vz) * nz;
 		if (rel >= 0) continue;
-		const impulse = -(1.55 * rel) * .5;
+		const impulse = -(1.72 * rel) * .5;
 		if (!a.held) {
 			a.vx -= impulse * nx;
 			a.vy -= impulse * ny;
@@ -949,6 +1000,12 @@ function stepBodies(dt, gravity) {
 			b.vx += impulse * nx;
 			b.vy += impulse * ny;
 			b.vz += impulse * nz;
+		}
+		if (rel < -.45) {
+			a.impact = 1;
+			b.impact = 1;
+			tickImpact();
+			pokeSlosh((a.x + b.x) * .5 / 1.5 + .5, (a.z + b.z) * .5 / 1.5 + .5, Math.min(1.2, -rel * .4));
 		}
 	}
 	for (let i = bodies.length - 1; i >= 0; i -= 1) {
@@ -982,24 +1039,33 @@ function stepSlosh(dt, tiltX, tiltZ, shake) {
 			count += 1;
 		}
 		const avg = count ? sum / count : 0;
-		const tilt = (x / (n - 1) - .5) * tiltZ * .4 + (y / (n - 1) - .5) * tiltX * .4;
-		const noise = shake > .35 ? (mulberry() - .5) * shake * .12 : 0;
+		const tilt = (x / (n - 1) - .5) * tiltZ * 1.15 + (y / (n - 1) - .5) * tiltX * 1.15;
+		const noise = shake > .2 ? (mulberry() - .5) * shake * .28 : 0;
 		slosh.v[i] += (avg - slosh.h[i] + tilt + noise) * spring * d;
-		slosh.v[i] *= Math.exp(-2.6 * d);
+		slosh.v[i] *= Math.exp(-1.7 * d);
 	}
-	for (let i = 0; i < slosh.h.length; i += 1) slosh.h[i] = Math.max(-.48, Math.min(.48, slosh.h[i] + slosh.v[i] * d));
+	const tiltMag = Math.hypot(tiltX, tiltZ);
+	if (tiltMag > .06) pokeSlosh(.5 + Math.max(-.34, Math.min(.34, tiltZ * .5)), .5 + Math.max(-.34, Math.min(.34, tiltX * .5)), tiltMag * .34);
+	if (shake > .12) pokeSlosh(.5, .5, shake * .48);
+	for (let i = 0; i < slosh.h.length; i += 1) slosh.h[i] = Math.max(-.92, Math.min(SLOSH_AMP, slosh.h[i] + slosh.v[i] * d));
 }
 function pokeSlosh(u, v, amount) {
 	const n = slosh.n;
-	const x = Math.max(0, Math.min(n - 1, Math.round(u * (n - 1))));
-	const y = Math.max(0, Math.min(n - 1, Math.round(v * (n - 1))));
-	slosh.v[y * n + x] += amount;
+	const cx = u * (n - 1);
+	const cy = v * (n - 1);
+	const radius = Math.max(2.4, n * .22);
+	for (let y = 0; y < n; y += 1) for (let x = 0; x < n; x += 1) {
+		const dist = Math.hypot(x - cx, y - cy);
+		if (dist > radius) continue;
+		const fall = Math.cos(dist / radius * Math.PI * .5);
+		slosh.v[y * n + x] += amount * fall;
+	}
 }
 function splashBodies() {
 	for (const body of bodies) {
 		if (body.held) continue;
 		const floor = FLOOR + body.r;
-		if (body.y <= floor + .03 && Math.abs(body.vy) > .4) pokeSlosh(body.x / 1.5 + .5, body.z / 1.5 + .5, Math.min(1.1, Math.abs(body.vy) * .32));
+		if (body.y <= floor + .04 && body.vy > .8 && body.impact > .6) pokeSlosh(body.x / 1.5 + .5, body.z / 1.5 + .5, Math.min(1.6, body.vy * .7));
 	}
 }
 function stepBrewPhysics(dt, env) {
@@ -2182,6 +2248,20 @@ function FlatBrew({ drops, vibe, reduced }) {
 			ctx.fill();
 			ctx.globalAlpha = 1;
 			ctx.save();
+			ctx.translate(cx, cy - radius * .05);
+			ctx.rotate(spin.y);
+			ctx.strokeStyle = "rgba(255,246,223,0.9)";
+			ctx.lineWidth = Math.max(2, radius * .035);
+			for (let ring = 1; ring <= 3; ring += 1) {
+				const wob = Math.sin(time * 5.5 - ring) * (.04 + wave * .35);
+				const rx = Math.max(2, radius * (.22 * ring + wob));
+				const ry = Math.max(1, radius * (.07 * ring + wob * .35));
+				ctx.beginPath();
+				ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+				ctx.stroke();
+			}
+			ctx.restore();
+			ctx.save();
 			ctx.translate(cx, cy - radius * .15);
 			ctx.rotate(spin.y);
 			ctx.strokeStyle = "#fff6df";
@@ -2199,8 +2279,10 @@ function FlatBrew({ drops, vibe, reduced }) {
 				const fade = body.kind === "spark" ? Math.max(0, 1 - body.age / body.life) : .95;
 				ctx.globalAlpha = fade;
 				ctx.fillStyle = body.color;
+				const squash = body.impact || 0;
+				const rad = Math.max(4, body.r * radius * 1.6);
 				ctx.beginPath();
-				ctx.arc(cx + body.x * radius * 1.15, cy - body.y * radius * .48, Math.max(4, body.r * radius * 1.6), 0, Math.PI * 2);
+				ctx.ellipse(cx + body.x * radius * 1.15, cy - body.y * radius * .48, rad * (1 + squash * .35), rad * (1 - squash * .4), 0, 0, Math.PI * 2);
 				ctx.fill();
 			}
 			ctx.globalAlpha = 1;
@@ -2572,7 +2654,7 @@ var useBrew = create((set, get) => ({
 	setNotice: (notice) => set({ notice }),
 	setRecording: (recording) => set({ recording })
 }));
-var CauldronScene = (0, import_react.lazy)(() => import("./scene-BKYjPw4d.mjs").then((mod) => ({ default: mod.CauldronScene })));
+var CauldronScene = (0, import_react.lazy)(() => import("./scene-DhshJ5Gb.mjs").then((mod) => ({ default: mod.CauldronScene })));
 var StageBoundary = class extends import_react.Component {
 	state = { bad: false };
 	static getDerivedStateFromError() {
@@ -3382,6 +3464,10 @@ function ConjureApp({ invite = "", watch = false, replay = null }) {
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "stage",
 				onPointerDown: (event) => {
+					const rect = event.currentTarget.getBoundingClientRect();
+					const u = rect.width > 0 ? (event.clientX - rect.left) / rect.width : .5;
+					const v = rect.height > 0 ? (event.clientY - rect.top) / rect.height : .5;
+					pokeSlosh(.18 + u * .64, .18 + (1 - v) * .64, 1.35);
 					if (grabPhysics(event.clientX, event.clientY)) {
 						try {
 							event.currentTarget.setPointerCapture(event.pointerId);
@@ -4615,4 +4701,4 @@ function PageFrame({ title, children }) {
 	});
 }
 //#endregion
-export { toolTouch as A, setRayView as C, spinSnapshot as D, spinFrames as E, stepBrewPhysics as O, setGrabStill as S, spin as T, punchStrength as _, decaySensor as a, setEnterAR as b, hslToHex as c, liveSensor as d, loadReplay as f, punch as g, physicsSnapshot as h, computeBrew as i, t as k, ingredientById as l, masterMix as m, PageFrame as n, effectsFor as o, localGravity as p, blendSensors as r, flingVel as s, ConjureApp as t, liveBodies as u, rememberedMotion as v, sloshGrid as w, setExportGlb as x, remoteSensor as y };
+export { t as A, setGrabStill as C, spinFrames as D, spin as E, spinSnapshot as O, setExportGlb as S, sloshGrid as T, punch as _, computeBrew as a, remoteSensor as b, flingVel as c, liveBodies as d, liveSensor as f, physicsSnapshot as g, masterMix as h, blendSensors as i, toolTouch as j, stepBrewPhysics as k, hslToHex as l, localGravity as m, PageFrame as n, decaySensor as o, loadReplay as p, SLOSH_AMP as r, effectsFor as s, ConjureApp as t, ingredientById as u, punchStrength as v, setRayView as w, setEnterAR as x, rememberedMotion as y };

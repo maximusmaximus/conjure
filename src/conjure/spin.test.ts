@@ -31,6 +31,17 @@ test("spin eases out and the snapshot keeps axis, damping, and count", () => {
   resetSpin();
 });
 
+test("the pot and ladle spring back to rest after a knock", () => {
+  resetSpin();
+  impulse(1.4, 2.2, 0.8);
+  for (let i = 0; i < 240; i += 1) stepSpin(1 / 30);
+  assert.ok(Math.abs(spin.x) < 0.05);
+  assert.ok(Math.abs(spin.y) < 0.05);
+  assert.ok(Math.abs(spin.z) < 0.05);
+  assert.ok(Math.hypot(spin.vx, spin.vy, spin.vz) < 0.05);
+  resetSpin();
+});
+
 test("mint metadata points at the loop and records the spin", () => {
   const meta = brewMetadata({
     title: "Moss brew",

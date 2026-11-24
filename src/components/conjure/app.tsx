@@ -901,6 +901,10 @@ export function ConjureApp({
       <div
         className="stage"
         onPointerDown={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const u = rect.width > 0 ? (event.clientX - rect.left) / rect.width : 0.5;
+          const v = rect.height > 0 ? (event.clientY - rect.top) / rect.height : 0.5;
+          pokeSlosh(0.18 + u * 0.64, 0.18 + (1 - v) * 0.64, 1.35);
           if (grabPhysics(event.clientX, event.clientY)) {
             try {
               event.currentTarget.setPointerCapture(event.pointerId);

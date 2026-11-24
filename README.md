@@ -7,8 +7,8 @@ Xero Emoji by Max Infeld, CC BY 4.0 — https://github.com/maximusmaximus/xeroem
 ## Try it
 
 1. Tap **Start**, or drop an ingredient. The first drop opens the cauldron.
-2. Drop Ember, Moss, Moon, Salt, Honey, Frost, Ink, or Spark. Keys 1–8 do the same. The brew takes that color, a charm falls into the pot, sparks fall with it, the surface ripples, the ladle takes a spin, and you hear a tone. That button then leaves the stage.
-3. Drag the brew and let go to fling it. The ladle, the charms, and the pot take on angular velocity and ease back to rest. A fling also knocks whatever is in the pot. Grab a charm or a spark with the pointer and throw it. Charms and sparks fall, bounce off each other and the walls, and settle. A phone that supports vibration ticks on the grab and on the throw.
+2. Drop Ember, Moss, Moon, Salt, Honey, Frost, Ink, or Spark. Keys 1–8 do the same. The brew takes that color, a charm falls into the pot, sparks fall with it, concentric rings run across the surface, the ladle takes a spin, and you hear a tone. That button then leaves the stage. A tap, a hit, a tilt, or a shake starts more rings. The surface stays in the pot.
+3. Drag the brew and let go to fling it. The ladle, the charms, and the pot take on angular velocity, then spring back to rest. A fling also knocks whatever is in the pot. Grab a charm or a spark with the pointer and throw it. They bounce off the bowl, the surface, and each other, squash for a moment, and a phone that supports vibration ticks on the hit, the grab, and the throw. On a phone in portrait the camera sits farther back so the whole cauldron, the charms, and the sparks stay above the controls.
 4. Tap the eye to bring the controls back. **Mic**, **Camera**, and **Motion** each kick the brew the moment you tap them: a swell, a color, and a spin. If the phone allows it, loudness, a color sample, and tilt keep feeding that motion. Only levels leave the phone. A used sensor button leaves with the rest of the tray.
 5. At **Master**, the eye also brings **Stir**, **Hue**, **Swirl**, **Bloom**, and **Freeze**. Each one changes the brew while you drag it. Freeze stops the spin. Letting go of a tool puts that slider away.
 6. Tap **Capture** for a still, a 6 second loop, and a recipe. The still is taken while the brew is still turning. The loop is the canvas for those 6 seconds, spin included. The GLB stores that same ease-out as an animation, plus the angular velocity, axis, damping, and spin count. **Share** copies a replay link that plays the spin again. **Remix** keeps the lineage.
@@ -58,7 +58,7 @@ Mic, camera, and motion start only after you tap them. Raw audio and camera fram
 
 ## Architecture
 
-The cauldron is a React route. Brew math in `src/conjure/brew.ts` turns drops and sensor levels into hue, energy, and form. `src/conjure/scene.tsx` draws that with three.js on WebGL2: physical glass where the tier allows it, a room environment from three.js `RoomEnvironment` through PMREM, bloom and optional depth of field, and additive ember particles. `src/conjure/physics.ts` is a small seeded solver for charms, sparks, and the liquid slosh grid. `src/conjure/fx.ts` maps the quality tier onto those effects. If WebGL2 is missing, `src/conjure/flat.tsx` draws the same brew and the same falling bodies on a 2D canvas. A WebGPU adapter, when present, only picks the quality tier.
+The cauldron is a React route. Brew math in `src/conjure/brew.ts` turns drops and sensor levels into hue, energy, and form. `src/conjure/scene.tsx` draws that with three.js on WebGL2: physical glass where the tier allows it, a room environment from three.js `RoomEnvironment` through PMREM, bloom and optional depth of field, and additive ember particles. `src/conjure/frame.ts` sets the camera from the canvas aspect and updates it when the size or orientation changes. `src/conjure/physics.ts` is a small seeded solver for charms, sparks, and the liquid slosh grid. `src/conjure/fx.ts` maps the quality tier onto those effects. If WebGL2 is missing, `src/conjure/flat.tsx` draws the same brew and the same falling bodies on a 2D canvas. A WebGPU adapter, when present, only picks the quality tier.
 
 Rooms poll `POST /api/conjure` about once a second. Tables live in `migrations/0002_conjure.sql` and `migrations/0003_board.sql`. Rows are unowned: there is no account system. Preview uses embedded Postgres when `DATABASE_URL` is unset. A hosted database uses that URL.
 
@@ -96,7 +96,7 @@ No secrets are required. Do not put a relayer key, Pinata JWT, or mainnet RPC in
 
 ## Testing
 
-`npm test` covers brew mapping, consent defaults, the mint-touch cap, level thresholds, daily XP caps, streaks, tip dismissal, handle filtering, fling decay, the master pixel-ratio cap, the tier-to-effects map, and the physics and material fields on mint metadata.
+`npm test` covers brew mapping, consent defaults, the mint-touch cap, level thresholds, daily XP caps, streaks, tip dismissal, handle filtering, fling decay, the master pixel-ratio cap, the tier-to-effects map, camera framing at phone and desktop sizes, bounce restitution, and the physics and material fields on mint metadata.
 
 The contract in `contracts/Conjure.sol` is a minimal ERC-721 with a fixed 5% ERC-2981 royalty and `transferFrom`. This environment does not run Foundry, so that file is not executed here.
 
