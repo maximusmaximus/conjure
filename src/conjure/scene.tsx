@@ -10,11 +10,11 @@ import * as THREE from "three";
 import { computeBrew, blendSensors, decaySensor, hslToHex, ingredientById, type Drop, type FormId, type Vibe } from "./brew";
 import { liveSensor, masterMix, punch, punchStrength, remoteSensor, setEnterAR, setExportGlb, setGrabStill, toolTouch } from "./live";
 import { flingVel } from "./fling";
-import { rememberedMotion, spin, spinFrames, spinSnapshot } from "./spin";
+import { rememberedMotion, spin, spinFrames, spinSnapshot, poseNow, stepTumble, tumble } from "./spin";
 import type { Quality } from "./quality";
 import { effectsFor, type FxProfile } from "./fx";
 import { liveBodies, localGravity, physicsSnapshot, setRayView, SLOSH_AMP, sloshGrid, stepBrewPhysics } from "./physics";
-import { frameFor, viewportForFrame } from "./frame";
+import { frameFor, frameMode, publishFrameDebug, viewportForFrame } from "./frame";
 
 const potPoints = (() => {
   const pts: THREE.Vector2[] = [];
@@ -192,26 +192,36 @@ function BrewMesh({
     }
     const leanX = masterMix.freeze ? 0 : liveSensor.tiltY * 0.7 + remoteSensor.tiltY * 0.2;
     const leanZ = masterMix.freeze ? 0 : liveSensor.tiltX * 0.7 + remoteSensor.tiltX * 0.2;
+    const energy = Math.min(
+      1,
+      liveSensor.loudness * 0.85 +
+        liveSensor.burst * 0.7 +
+        liveSensor.shake * 0.55 +
+        Math.min(1, Math.hypot(spin.vx, spin.vy, spin.vz) / 3) +
+        Math.min(1, Math.hypot(flingVel.x, flingVel.y)) +
+        (toolTouch.stir ? masterMix.stir * 0.5 : 0),
+    );
+    stepTumble(dt, energy, { reduced, frozen: masterMix.freeze });
+    const pose = poseNow(leanX, leanZ, masterMix.freeze);
     if (glow.current) {
       glow.current.color.copy(liquidUniforms.uColor.value);
       glow.current.intensity = masterMix.freeze ? 3 : 7 + flashT * 20;
     }
     if (brewGroup.current) {
       brewGroup.current.position.set(0, 0, 0);
-      brewGroup.current.rotation.set(spin.x + leanX, spin.y, spin.z + leanZ);
+      brewGroup.current.rotation.set(pose.x, pose.y, pose.z);
+      brewGroup.current.scale.setScalar(pose.scale);
     }
     if (pot.current) {
       pot.current.position.set(0, 0, 0);
-      if (!masterMix.freeze) {
-        pot.current.rotation.y = spin.y;
-        pot.current.rotation.z = Math.sin(spin.z) * 0.12 + leanZ * 0.25;
-      }
+      pot.current.rotation.set(pose.x, pose.y, pose.z);
+      pot.current.scale.setScalar(pose.scale);
     }
     stepBrewPhysics(dt, {
-      gravity: localGravity(spin.x + leanX, spin.y, spin.z + leanZ),
-      tiltX: reduced ? leanX * 0.25 : leanX,
-      tiltZ: reduced ? leanZ * 0.25 : leanZ,
-      shake: reduced || masterMix.freeze ? 0 : liveSensor.shake,
+      gravity: localGravity(pose.x, pose.y, pose.z),
+      tiltX: reduced ? pose.x * 0.35 : pose.x,
+      tiltZ: reduced ? pose.z * 0.35 : pose.z,
+      shake: reduced || masterMix.freeze ? 0 : liveSensor.shake + tumble.energy * 0.35,
     });
     const grid = sloshGrid();
     const data = sloshTex.image.data as Uint8Array;
@@ -550,7 +560,7 @@ function Falls({ drops }: { drops: Drop[] }) {
 
 function paintBodies(
   mesh: THREE.InstancedMesh | null,
-  kind: "charm" | "spark",
+  kind: "charm" | "spark" | "drop",
   max: number,
   dummy: THREE.Object3D,
   tint: THREE.Color,
@@ -567,7 +577,8 @@ function paintBodies(
       dummy.position.set(body.x, body.y, body.z);
       const fade = kind === "spark" ? Math.max(0.2, 1 - body.age / body.life) : 1;
       const hit = body.impact || 0;
-      const size = body.r * (kind === "charm" ? 3.4 : 2.8) * (body.held ? 1.28 : 1) * fade;
+      const mul = kind === "charm" ? 3.4 : kind === "drop" ? 2.1 : 2.8;
+      const size = body.r * mul * (body.held ? 1.28 : 1) * fade;
       dummy.scale.set(size * (1 + hit * 0.45), size * (1 - hit * 0.42), size * (1 + hit * 0.45));
       dummy.rotation.set(body.age * 2.2, body.hue * 0.02, body.age * 0.8);
       tint.set(body.color);
@@ -588,6 +599,7 @@ function paintBodies(
 function PhysVis({ fx }: { fx: FxProfile }) {
   const charms = useRef<THREE.Group>(null);
   const sparksMesh = useRef<THREE.InstancedMesh>(null);
+  const dropsMesh = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const tint = useMemo(() => new THREE.Color("#ffffff"), []);
   useFrame(() => {
@@ -618,6 +630,7 @@ function PhysVis({ fx }: { fx: FxProfile }) {
       }
     }
     paintBodies(sparksMesh.current, "spark", 32, dummy, tint);
+    paintBodies(dropsMesh.current, "drop", fx.drops, dummy, tint);
   });
   return (
     <group>
@@ -663,6 +676,10 @@ function PhysVis({ fx }: { fx: FxProfile }) {
           roughness={0.15}
           toneMapped={false}
         />
+      </instancedMesh>
+      <instancedMesh ref={dropsMesh} args={[undefined, undefined, 24]}>
+        <sphereGeometry args={[1, 10, 8]} />
+        <meshStandardMaterial color="#f0b56a" emissive="#e27a3a" emissiveIntensity={0.8} roughness={0.35} />
       </instancedMesh>
     </group>
   );
@@ -979,6 +996,17 @@ function FrameCamera() {
     const aspectW = canvas.clientWidth >= 32 ? canvas.clientWidth : size.width || view.width;
     const aspectH = canvas.clientHeight >= 32 ? canvas.clientHeight : size.height || view.height;
     applyFrame(camera, view.width, view.height, aspectW / Math.max(aspectH, 1));
+    const persp = camera as THREE.PerspectiveCamera;
+    publishFrameDebug({
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight,
+      canvasWidth: canvas.clientWidth,
+      canvasHeight: canvas.clientHeight,
+      dpr: window.devicePixelRatio || 1,
+      position: [persp.position.x, persp.position.y, persp.position.z],
+      fov: persp.fov,
+      mode: frameMode(view.width, view.height),
+    });
   });
   return null;
 }

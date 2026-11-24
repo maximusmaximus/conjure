@@ -83,7 +83,11 @@
     "spins": "Spin count",
     "gravity": "Gravity",
     "tier": "Tier",
-    "bodies": "Bodies"
+    "bodies": "Bodies",
+    "rotation": "Rotation",
+    "scale": "Scale",
+    "spill": "Spill lip",
+    "bodyCap": "Body cap"
   },
   "room": {
     "title": "One cauldron",

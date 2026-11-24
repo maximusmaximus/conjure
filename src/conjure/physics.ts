@@ -32,7 +32,18 @@ export function localGravity(rx: number, ry: number, rz: number, g = GRAVITY): [
 const FLOOR = 0.74;
 const RIM = 1.18;
 
-export type BodyKind = "charm" | "spark";
+/** Where a tilted pot lets a body leave, and where the ground sends it back. */
+export const SPILL = {
+  lip: 1.05,
+  mouth: 0.98,
+  ground: 0.05,
+};
+
+export function bodyCap(parts: { bodies: number; sparkBodies: number; drops: number }): number {
+  return parts.bodies + parts.sparkBodies + parts.drops;
+}
+
+export type BodyKind = "charm" | "spark" | "drop";
 
 export type PhysBody = {
   id: string;
@@ -73,6 +84,8 @@ let seed = 1;
 let rngState = 1;
 let maxCharms = 8;
 let maxSparks = 16;
+let maxDrops = 0;
+let dropSerial = 0;
 let slosh: Slosh = createSlosh(16);
 let heldId: string | null = null;
 let rayView: ((x: number, y: number) => Ray | null) | null = null;
@@ -117,12 +130,14 @@ export function resetPhysics(nextSeed = 1): void {
   rngState = seed;
   heldId = null;
   seenBurst = -1;
+  dropSerial = 0;
   slosh = createSlosh(slosh.n);
 }
 
-export function configurePhysics(opts: { charms: number; sparks: number; slosh: number }): void {
+export function configurePhysics(opts: { charms: number; sparks: number; slosh: number; drops?: number }): void {
   maxCharms = opts.charms;
   maxSparks = opts.sparks;
+  maxDrops = opts.drops ?? 0;
   if (slosh.n !== opts.slosh) slosh = createSlosh(opts.slosh);
   trim();
 }
@@ -142,11 +157,15 @@ export function setRayView(fn: ((x: number, y: number) => Ray | null) | null): v
 function trim(): void {
   let charms = 0;
   let sparks = 0;
+  let drops = 0;
   for (let i = bodies.length - 1; i >= 0; i -= 1) {
     const body = bodies[i];
     if (body.kind === "charm") {
       charms += 1;
       if (charms > maxCharms) bodies.splice(i, 1);
+    } else if (body.kind === "drop") {
+      drops += 1;
+      if (drops > maxDrops) bodies.splice(i, 1);
     } else {
       sparks += 1;
       if (sparks > maxSparks) bodies.splice(i, 1);
@@ -233,7 +252,18 @@ export function stepBodies(dt: number, gravity: [number, number, number]): void 
     body.z += body.vz * d;
     body.age += d;
     body.impact = Math.max(0, (body.impact || 0) - d * 3.4);
-    const floor = FLOOR + body.r;
+    const horiz = Math.hypot(body.x, body.z);
+    const nx = horiz > 0.001 ? body.x / horiz : 0;
+    const nz = horiz > 0.001 ? body.z / horiz : 0;
+    const gOut = gravity[0] * nx + gravity[2] * nz;
+    const limit = Math.max(0.05, wallRadius(body.y) - body.r);
+    const outside = horiz > SPILL.mouth;
+    const onGround = outside && body.y < 0.55;
+    const crest =
+      body.y > 0.96 &&
+      horiz > limit * 0.88 &&
+      (gOut > 1.4 || body.vx * nx + body.vz * nz > 0.85);
+    const floor = (onGround ? SPILL.ground : FLOOR) + body.r;
     if (body.y < floor) {
       body.y = floor;
       if (body.vy < -0.55) {
@@ -246,11 +276,7 @@ export function stepBodies(dt: number, gravity: [number, number, number]): void 
       body.vx *= 0.8;
       body.vz *= 0.8;
     }
-    const horiz = Math.hypot(body.x, body.z);
-    const limit = Math.max(0.05, wallRadius(body.y) - body.r);
-    if (body.y < RIM && horiz > limit) {
-      const nx = body.x / (horiz || 1);
-      const nz = body.z / (horiz || 1);
+    if (!crest && !onGround && body.y < RIM && horiz > limit) {
       body.x = nx * limit;
       body.z = nz * limit;
       const vn = body.vx * nx + body.vz * nz;
@@ -268,6 +294,36 @@ export function stepBodies(dt: number, gravity: [number, number, number]): void 
       } else if (vn > 0) {
         body.vx -= (1 + RESTITUTION) * vn * nx;
         body.vz -= (1 + RESTITUTION) * vn * nz;
+      }
+    } else if (
+      !body.held &&
+      body.y > 0.82 &&
+      body.y < RIM &&
+      horiz > limit * 0.7 &&
+      horiz < SPILL.mouth * 1.2 &&
+      gOut > 2.2
+    ) {
+      body.vy += 6.5 * d;
+      body.vx += nx * 4.2 * d;
+      body.vz += nz * 4.2 * d;
+    }
+    const spilledH = Math.hypot(body.x, body.z);
+    if (spilledH > SPILL.mouth && !body.held) {
+      const ox = body.x / spilledH;
+      const oz = body.z / spilledH;
+      const vn = body.vx * ox + body.vz * oz;
+      if (vn > 0.35) {
+        const damp = Math.min(1, 10 * d);
+        body.vx -= vn * ox * damp;
+        body.vz -= vn * oz * damp;
+      }
+      const pull = spilledH > 1.7 ? 26 : 14;
+      body.vx -= ox * pull * d;
+      body.vz -= oz * pull * d;
+      if (body.y < SPILL.lip) body.vy += 14 * d;
+      if (spilledH > 3.1) {
+        body.x = ox * 3.1;
+        body.z = oz * 3.1;
       }
     }
   }
@@ -319,7 +375,7 @@ export function stepBodies(dt: number, gravity: [number, number, number]): void 
   for (let i = bodies.length - 1; i >= 0; i -= 1) {
     const body = bodies[i];
     if (body.kind === "spark" && body.age > body.life) bodies.splice(i, 1);
-    else if (body.y < -3 || Math.hypot(body.x, body.z) > 5) bodies.splice(i, 1);
+    else if (body.y < -2 || Math.hypot(body.x, body.z) > 6) bodies.splice(i, 1);
   }
 }
 
@@ -394,10 +450,39 @@ function splashBodies(): void {
   }
 }
 
+function maintainDrops(): void {
+  if (maxDrops <= 0) return;
+  let count = 0;
+  for (const body of bodies) if (body.kind === "drop") count += 1;
+  if (count >= maxDrops) return;
+  if (mulberry() > 0.55) return;
+  const angle = mulberry() * Math.PI * 2;
+  const radius = 0.12 + mulberry() * 0.22;
+  bodies.push({
+    id: `drop-${seed}-${dropSerial}`,
+    kind: "drop",
+    x: Math.cos(angle) * radius,
+    y: 0.92 + mulberry() * 0.12,
+    z: Math.sin(angle) * radius,
+    vx: Math.cos(angle) * 0.35,
+    vy: 0.15 + mulberry() * 0.4,
+    vz: Math.sin(angle) * 0.35,
+    r: 0.04,
+    age: 0,
+    life: 1e6,
+    held: false,
+    impact: 0,
+    color: "#f0b56a",
+    hue: 28,
+  });
+  dropSerial += 1;
+}
+
 export function stepBrewPhysics(
   dt: number,
   env: { gravity: [number, number, number]; tiltX: number; tiltZ: number; shake: number },
 ): void {
+  maintainDrops();
   stepBodies(dt, env.gravity);
   stepSlosh(dt, env.tiltX, env.tiltZ, env.shake);
   splashBodies();

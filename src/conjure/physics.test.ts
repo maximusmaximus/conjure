@@ -3,14 +3,18 @@ import { test } from "node:test";
 import { effectsFor, materialNote } from "./fx.ts";
 import { masterQuality, qualityFromTier } from "./quality.ts";
 import {
+  bodyCap,
   BOUNCE_KICK,
+  configurePhysics,
   GRAVITY,
-  RESTITUTION,
   liveBodies,
   localGravity,
   pushBody,
   resetPhysics,
+  RESTITUTION,
+  SPILL,
   stepBodies,
+  stepBrewPhysics,
   wallRadius,
   type PhysBody,
 } from "./physics.ts";
@@ -180,4 +184,49 @@ test("mint metadata records the physics snapshot and the material", () => {
   assert.equal(byName.Tier, "master");
   assert.equal(byName.IOR, material.ior);
   assert.equal(byName.Bloom, material.bloom);
+});
+
+test("spilled bodies return and the cap rises with the tier", () => {
+  const low = effectsFor(qualityFromTier("low", false, true));
+  const mid = effectsFor(qualityFromTier("mid", false, true));
+  const high = effectsFor(qualityFromTier("high", true, true));
+  const master = effectsFor(
+    masterQuality(qualityFromTier("mid", true, true), { dpr: 2, maxTexture: 8192, width: 1280, height: 800 }),
+  );
+  assert.ok(low.drops < mid.drops);
+  assert.ok(mid.drops < high.drops);
+  assert.ok(high.drops < master.drops);
+  assert.ok(bodyCap(low) < bodyCap(mid));
+  assert.ok(bodyCap(mid) < bodyCap(high));
+  assert.ok(bodyCap(high) < bodyCap(master));
+
+  resetPhysics(4);
+  configurePhysics({ charms: 0, sparks: 0, slosh: 8, drops: low.drops });
+  pushBody(
+    body({
+      id: "spill",
+      kind: "drop",
+      x: 1.7,
+      y: 0.12,
+      z: 0.1,
+      vx: 0.2,
+      r: 0.04,
+      color: "#f0b56a",
+    }),
+  );
+  let left = false;
+  const gravity = localGravity(0.65, 0.2, 0.15);
+  for (let i = 0; i < 240; i += 1) {
+    stepBrewPhysics(1 / 60, { gravity, tiltX: 0.65, tiltZ: 0.15, shake: 0 });
+    const drop = liveBodies().find((item) => item.id === "spill");
+    assert.ok(drop, "the drop should stay in the pot's flow");
+    if (Math.hypot(drop.x, drop.z) > SPILL.mouth) left = true;
+  }
+  const back = liveBodies().find((item) => item.id === "spill");
+  assert.ok(back);
+  assert.equal(left, true);
+  assert.ok(Math.hypot(back.x, back.z) < 1.05 || back.y > 0.7);
+  assert.ok(liveBodies().filter((item) => item.kind === "drop").length <= low.drops);
+  resetPhysics(1);
+  configurePhysics({ charms: 8, sparks: 16, slosh: 16, drops: 0 });
 });

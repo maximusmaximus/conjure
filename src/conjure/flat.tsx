@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import { blendSensors, computeBrew, hslToHex, ingredientById, type Drop, type Vibe } from "./brew";
+import { flingVel } from "./fling";
 import { liveSensor, masterMix, punch, punchStrength, remoteSensor, setGrabStill, toolTouch } from "./live";
 import { localGravity, liveBodies, sloshGrid, stepBrewPhysics } from "./physics";
-import { spin } from "./spin";
+import { poseNow, spin, stepTumble, tumble } from "./spin";
 
 /** Drawn cauldron used when WebGL is missing. Same brew math as the 3D stage. */
 export function FlatBrew({
@@ -30,11 +31,21 @@ export function FlatBrew({
       stamp = now;
       const leanX = masterMix.freeze ? 0 : liveSensor.tiltY * 0.7 + remoteSensor.tiltY * 0.2;
       const leanZ = masterMix.freeze ? 0 : liveSensor.tiltX * 0.7 + remoteSensor.tiltX * 0.2;
+      const energy = Math.min(
+        1,
+        liveSensor.loudness * 0.85 +
+          liveSensor.burst * 0.7 +
+          liveSensor.shake * 0.55 +
+          Math.min(1, Math.hypot(spin.vx, spin.vy, spin.vz) / 3) +
+          Math.min(1, Math.hypot(flingVel.x, flingVel.y)),
+      );
+      stepTumble(dt, energy, { reduced, frozen: masterMix.freeze });
+      const pose = poseNow(leanX, leanZ, masterMix.freeze);
       stepBrewPhysics(dt, {
-        gravity: localGravity(spin.x + leanX, spin.y, spin.z + leanZ),
-        tiltX: leanX,
-        tiltZ: leanZ,
-        shake: masterMix.freeze || reduced ? 0 : liveSensor.shake,
+        gravity: localGravity(pose.x, pose.y, pose.z),
+        tiltX: reduced ? pose.x * 0.35 : pose.x,
+        tiltZ: reduced ? pose.z * 0.35 : pose.z,
+        shake: masterMix.freeze || reduced ? 0 : liveSensor.shake + tumble.energy * 0.35,
       });
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const width = canvas.clientWidth || 320;
@@ -57,11 +68,12 @@ export function FlatBrew({
         Math.min(width, height) *
         0.22 *
         brew.scale *
+        pose.scale *
         (1 + liveSensor.burst * 0.35) *
         (0.75 + bloom);
       ctx.save();
       ctx.translate(cx, cy);
-      ctx.rotate(spin.y);
+      ctx.rotate(pose.y);
       const glow = ctx.createRadialGradient(0, -radius, radius * 0.2, 0, -radius, radius * 1.8);
       glow.addColorStop(0, color);
       glow.addColorStop(1, "rgba(17,14,12,0)");
@@ -75,7 +87,7 @@ export function FlatBrew({
         reduced || masterMix.freeze
           ? 0
           : Math.sin(time * (2 + brew.swirl + Math.abs(spin.vy))) * 14 * (0.4 + brew.spikes);
-      ctx.ellipse(0, -radius * 1.15, radius * 0.72 + wobble, radius * 0.85, spin.z * 0.25, 0, Math.PI * 2);
+      ctx.ellipse(0, -radius * 1.15, radius * 0.72 + wobble, radius * 0.85, pose.z * 0.25, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
       ctx.fillStyle = "#3a2c24";
@@ -94,7 +106,7 @@ export function FlatBrew({
       ctx.globalAlpha = 1;
       ctx.save();
       ctx.translate(cx, cy - radius * 0.05);
-      ctx.rotate(spin.y);
+      ctx.rotate(pose.y);
       ctx.strokeStyle = "rgba(255,246,223,0.9)";
       ctx.lineWidth = Math.max(2, radius * 0.035);
       for (let ring = 1; ring <= 3; ring += 1) {
@@ -108,7 +120,7 @@ export function FlatBrew({
       ctx.restore();
       ctx.save();
       ctx.translate(cx, cy - radius * 0.15);
-      ctx.rotate(spin.y);
+      ctx.rotate(pose.y);
       ctx.strokeStyle = "#fff6df";
       ctx.lineWidth = Math.max(3, radius * 0.08);
       ctx.beginPath();

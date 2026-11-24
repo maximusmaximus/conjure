@@ -6,6 +6,7 @@ export type FxProfile = {
   master: boolean;
   bodies: number;
   sparkBodies: number;
+  drops: number;
   particles: number;
   slosh: number;
   transmission: number;
@@ -48,6 +49,7 @@ export function effectsFor(quality: FxInput): FxProfile {
       master: true,
       bodies: 8,
       sparkBodies: 28,
+      drops: 22,
       particles: Math.max(particles, 640),
       slosh: 24,
       transmission: 0.94,
@@ -71,6 +73,7 @@ export function effectsFor(quality: FxInput): FxProfile {
       master: false,
       bodies: 4,
       sparkBodies: 8,
+      drops: 6,
       particles: Math.min(particles, 70),
       slosh: 12,
       transmission: 0,
@@ -94,6 +97,7 @@ export function effectsFor(quality: FxInput): FxProfile {
       master: false,
       bodies: 8,
       sparkBodies: 20,
+      drops: 14,
       particles,
       slosh: 20,
       transmission: 0.72,
@@ -116,6 +120,7 @@ export function effectsFor(quality: FxInput): FxProfile {
     master: false,
     bodies: 6,
     sparkBodies: 14,
+    drops: 10,
     particles,
     slosh: 16,
     transmission: 0.48,

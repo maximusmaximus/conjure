@@ -25,7 +25,9 @@ import { FlatBrew } from "@/conjure/flat";
 import { XeIcon } from "@/conjure/icons";
 import { burstSparks, downloadGlb, flashPulse, liveSensor, masterMix, punchColor, remoteSensor, shownColor, sparks, startAR, takeStill, toolTouch, pulse } from "@/conjure/live";
 import { effectsFor, materialNote } from "@/conjure/fx";
+import { frameDebug } from "@/conjure/frame";
 import {
+  bodyCap,
   configurePhysics,
   dragPhysics,
   grabPhysics,
@@ -36,10 +38,11 @@ import {
   pokeSlosh,
   releasePhysics,
   resetPhysics,
+  SPILL,
   syncCharms,
 } from "@/conjure/physics";
 import { probeQuality, qualityFromTier, type Quality } from "@/conjure/quality";
-import { brewMetadata, impulse, rememberMotion, restoreSpin, spin, spinSnapshot, stepSpin } from "@/conjure/spin";
+import { brewMetadata, impulse, motionSnapshot, rememberMotion, restoreSpin, spin, spinSnapshot, stepSpin } from "@/conjure/spin";
 import {
   award,
   cleanHandle,
@@ -108,14 +111,51 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function FrameReadout() {
+  const ref = useRef<HTMLPreElement>(null);
+  useEffect(() => {
+    let frame = 0;
+    const tick = () => {
+      const el = ref.current;
+      if (el) {
+        const d = frameDebug;
+        el.textContent = [
+          `window ${d.innerWidth}×${d.innerHeight}`,
+          `canvas ${d.canvasWidth}×${d.canvasHeight}`,
+          `dpr ${d.dpr.toFixed(2)}`,
+          `camera ${d.position.map((n) => n.toFixed(2)).join(" ")}`,
+          `fov ${d.fov.toFixed(1)}`,
+          `mode ${d.mode}`,
+        ].join("\n");
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  return <pre ref={ref} className="frame-debug" aria-hidden="true" />;
+}
+
+function captureMotion(quality: Quality | null) {
+  const fx = effectsFor(quality ?? qualityFromTier("mid", false, true));
+  return motionSnapshot({
+    lip: SPILL.lip,
+    mouth: SPILL.mouth,
+    ground: SPILL.ground,
+    bodyCap: bodyCap(fx),
+  });
+}
+
 export function ConjureApp({
   invite = "",
   watch = false,
   replay = null,
+  debug = false,
 }: {
   invite?: string;
   watch?: boolean;
   replay?: Creation | null;
+  debug?: boolean;
 }) {
   const started = useBrew((s) => s.started);
   const vibe = useBrew((s) => s.vibe);
@@ -231,7 +271,7 @@ export function ConjureApp({
   useEffect(() => {
     if (!quality) return;
     const fx = effectsFor(quality);
-    configurePhysics({ charms: fx.bodies, sparks: fx.sparkBodies, slosh: fx.slosh });
+    configurePhysics({ charms: fx.bodies, sparks: fx.sparkBodies, slosh: fx.slosh, drops: fx.drops });
   }, [quality]);
 
   useEffect(() => {
@@ -739,6 +779,7 @@ export function ConjureApp({
       createdAt: Date.now(),
       still: earlyStill ?? takeStill() ?? undefined,
       spin: motion,
+      motion: captureMotion(quality),
       physics: physicsShot,
       material: materialShot,
     };
@@ -860,6 +901,7 @@ export function ConjureApp({
       contributors: [{ id: deviceRef.current, name: state.name || "You", included: true }],
       createdAt: Date.now(),
       spin: spinSnapshot(),
+      motion: captureMotion(quality),
       physics: physicsSnapshot(),
       material: materialNote(effectsFor(quality ?? qualityFromTier("mid", false, true))),
     };
@@ -899,6 +941,7 @@ export function ConjureApp({
 
   return (
     <main className="conjure">
+      {debug && <FrameReadout />}
       <div className="sr-only" aria-live="polite">
         {liveMsg}
       </div>
@@ -1010,7 +1053,7 @@ export function ConjureApp({
       </div>
 
       <header className="topbar">
-        <Link to="/" search={{ room: "", watch: false }} className="brand" aria-label={t("app.title")}>
+        <Link to="/" search={{ room: "", watch: false, debug: 0 }} className="brand" aria-label={t("app.title")}>
           <XeIcon emoji="🪄" />
           <span>{t("app.title")}</span>
         </Link>
@@ -1627,6 +1670,13 @@ export function ConjureApp({
                 {t("mint.spins")} {review.spin.spinCount}
               </p>
             )}
+            {review.motion && (
+              <p className="muted">
+                {t("mint.rotation")} {review.motion.rotation.map((n) => n.toFixed(2)).join(", ")} · {t("mint.scale")}{" "}
+                {review.motion.scale.toFixed(2)} · {t("mint.spill")} {review.motion.spillLip} · {t("mint.bodyCap")}{" "}
+                {review.motion.bodyCap}
+              </p>
+            )}
             {review.material && (
               <p className="muted">
                 {t("mint.tier")} {review.material.tier} · {t("mint.gravity")} {review.physics?.gravity ?? 9.8} ·{" "}
@@ -1753,6 +1803,7 @@ export function ConjureApp({
                     royaltyBps: CHAIN.royaltyBps,
                     physics: review.physics ?? null,
                     material: review.material ?? null,
+                    motion: review.motion ?? null,
                   });
                   const file = new Blob([JSON.stringify(meta, null, 2)], { type: "application/json" });
                   const url = URL.createObjectURL(file);
@@ -1988,7 +2039,7 @@ export function PageFrame({ title, children }: { title: string; children: ReactN
   return (
     <main className="conjure page">
       <header className="topbar">
-        <Link to="/" search={{ room: "", watch: false }} className="brand">
+        <Link to="/" search={{ room: "", watch: false, debug: 0 }} className="brand">
           <XeIcon emoji="🪄" />
           <span>{t("app.title")}</span>
         </Link>
@@ -1997,7 +2048,7 @@ export function PageFrame({ title, children }: { title: string; children: ReactN
         <h1>{title}</h1>
         {children}
         <p>
-          <Link to="/" search={{ room: "", watch: false }}>{t("back")}</Link>
+          <Link to="/" search={{ room: "", watch: false, debug: 0 }}>{t("back")}</Link>
         </p>
       </article>
     </main>

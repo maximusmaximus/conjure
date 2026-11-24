@@ -2,6 +2,7 @@
 
 import type { MaterialNote } from "./fx";
 import type { PhysicsNote } from "./physics";
+import { POT_SCALE_MAX, POT_SCALE_MIN } from "./frame.ts";
 
 export type SpinNote = {
   angularVelocity: number;
@@ -93,6 +94,92 @@ export function stepSpin(dt: number): void {
   spin.spins += ((moved.before + moved.after) * 0.5 * Math.min(Math.max(dt, 0), 0.1)) / (Math.PI * 2);
 }
 
+export const SCALE_MIN = POT_SCALE_MIN;
+export const SCALE_MAX = POT_SCALE_MAX;
+
+/** Idle tumble. User spin damps back onto this, it does not replace it. */
+export const tumble = {
+  x: 0,
+  y: 0,
+  z: 0,
+  scale: 1,
+  energy: 0,
+  time: 0,
+};
+
+export function resetTumble(): void {
+  tumble.x = 0;
+  tumble.y = 0;
+  tumble.z = 0;
+  tumble.scale = 1;
+  tumble.energy = 0;
+  tumble.time = 0;
+}
+
+/** Continuous multi-axis turn and a breathing scale. Energy speeds both up. */
+export function stepTumble(dt: number, energy: number, opts?: { reduced?: boolean; frozen?: boolean }): void {
+  const d = Math.min(0.05, Math.max(0, dt));
+  if (opts?.frozen || d === 0) return;
+  const reduced = Boolean(opts?.reduced);
+  const target = Math.max(0, Math.min(1, energy));
+  tumble.energy += (target - tumble.energy) * Math.min(1, d * 4);
+  const drive = reduced ? 0.28 : 0.62 + tumble.energy * 0.85;
+  tumble.time += d * (reduced ? 0.35 : 0.62 + tumble.energy * 1.35);
+  const t = tumble.time;
+  tumble.x = Math.sin(t * 0.41) * 0.42 * drive;
+  tumble.z = Math.sin(t * 0.27 + 0.8) * 0.42 * drive;
+  tumble.y += d * (reduced ? 0.22 : 0.48 + tumble.energy * 1.25);
+  if (tumble.y > Math.PI * 2) tumble.y -= Math.PI * 2;
+  const breath = Math.sin(t * (1.15 + tumble.energy * 2.1));
+  const span = (SCALE_MAX - SCALE_MIN) * 0.5;
+  const mid = (SCALE_MAX + SCALE_MIN) * 0.5;
+  const amp = reduced ? 0.4 : 0.62 + tumble.energy * 0.38;
+  tumble.scale = mid + breath * span * amp;
+  if (tumble.scale < SCALE_MIN) tumble.scale = SCALE_MIN;
+  if (tumble.scale > SCALE_MAX) tumble.scale = SCALE_MAX;
+}
+
+export function poseNow(leanX: number, leanZ: number, frozen: boolean): { x: number; y: number; z: number; scale: number } {
+  if (frozen) return { x: 0, y: tumble.y, z: 0, scale: tumble.scale };
+  return {
+    x: tumble.x + spin.x + leanX,
+    y: tumble.y + spin.y,
+    z: tumble.z + spin.z + leanZ,
+    scale: tumble.scale,
+  };
+}
+
+export type MotionNote = {
+  rotation: [number, number, number];
+  scale: number;
+  scaleMin: number;
+  scaleMax: number;
+  energy: number;
+  spillLip: number;
+  spillMouth: number;
+  spillGround: number;
+  bodyCap: number;
+};
+
+export function motionSnapshot(spill: {
+  lip: number;
+  mouth: number;
+  ground: number;
+  bodyCap: number;
+}): MotionNote {
+  return {
+    rotation: [round(tumble.x + spin.x), round(tumble.y + spin.y), round(tumble.z + spin.z)],
+    scale: round(tumble.scale),
+    scaleMin: SCALE_MIN,
+    scaleMax: SCALE_MAX,
+    energy: round(tumble.energy),
+    spillLip: spill.lip,
+    spillMouth: spill.mouth,
+    spillGround: spill.ground,
+    bodyCap: spill.bodyCap,
+  };
+}
+
 export function spinSnapshot(): SpinNote {
   const speed = Math.hypot(spin.vx, spin.vy, spin.vz);
   const axis: [number, number, number] =
@@ -160,6 +247,7 @@ export function brewMetadata(input: {
   royaltyBps: number;
   physics?: PhysicsNote | null;
   material?: MaterialNote | null;
+  motion?: MotionNote | null;
 }): Record<string, unknown> {
   const note = input.spin;
   const axis = note?.axis ?? [0, 1, 0];
@@ -177,6 +265,17 @@ export function brewMetadata(input: {
     tier: "mid",
     dof: false,
     shadows: false,
+  };
+  const motion = input.motion ?? {
+    rotation: [0, 0, 0] as [number, number, number],
+    scale: 1,
+    scaleMin: SCALE_MIN,
+    scaleMax: SCALE_MAX,
+    energy: 0,
+    spillLip: 1.05,
+    spillMouth: 0.98,
+    spillGround: 0.05,
+    bodyCap: 0,
   };
   return {
     name: input.title,
@@ -199,10 +298,16 @@ export function brewMetadata(input: {
       { trait_type: "Bloom", value: material.bloom },
       { trait_type: "Tone mapping", value: material.toneMapping },
       { trait_type: "Tier", value: material.tier },
+      { trait_type: "Rotation", value: motion.rotation.map((n) => n.toFixed(3)).join(", ") },
+      { trait_type: "Scale", value: motion.scale },
+      { trait_type: "Scale range", value: `${motion.scaleMin}–${motion.scaleMax}` },
+      { trait_type: "Spill lip", value: motion.spillLip },
+      { trait_type: "Body cap", value: motion.bodyCap },
     ],
     properties: {
       physics,
       material,
+      motion,
     },
     vibe: input.vibe,
     chainId: input.chainId,

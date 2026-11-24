@@ -26,6 +26,44 @@ export const BREW_BOUNDS: [number, number, number][] = [
   [1.05, 2.28, 0.35],
 ];
 
+export const POT_SCALE_MIN = 0.9;
+export const POT_SCALE_MAX = 1.22;
+/** Largest lean the phone frame must still contain, tumble plus a throw. */
+export const POT_TILT_MAX = 0.75;
+
+/** Ground spill around the pot, in rest pose before scale and tilt. */
+const SPILL_POINTS: [number, number, number][] = [
+  [1.95, 0.08, 0],
+  [-1.95, 0.08, 0],
+  [0, 0.08, 1.95],
+  [0, 0.08, -1.95],
+  [1.4, 0.4, 1.25],
+  [-1.4, 1.2, 0],
+  [1.25, 1.85, 0],
+  [0, 2.75, 0],
+];
+
+function applyTiltScale(point: [number, number, number], tilt: number, scale: number): [number, number, number] {
+  const [x, y, z] = point;
+  const c = Math.cos(tilt);
+  const s = Math.sin(tilt);
+  const yx = y * c - z * s;
+  const zx = y * s + z * c;
+  const x2 = x * c - yx * s;
+  const y2 = x * s + yx * c;
+  return [x2 * scale, y2 * scale, zx * scale];
+}
+
+/** Rim, ladle, and spill after the pot's largest breath and tilt. */
+export function spillFramePoints(): [number, number, number][] {
+  const out: [number, number, number][] = [];
+  for (const point of [...BREW_BOUNDS, ...SPILL_POINTS]) {
+    out.push(applyTiltScale(point, POT_TILT_MAX, POT_SCALE_MAX));
+    out.push(applyTiltScale(point, -POT_TILT_MAX, POT_SCALE_MAX));
+  }
+  return out;
+}
+
 export function isPhonePortrait(width: number, height: number): boolean {
   return width >= 280 && width <= 430 && height > width;
 }
@@ -49,9 +87,9 @@ export function frameFor(width: number, height: number): CameraFrame {
   const tall = 1 - short;
   const narrow = clamp01((430 - width) / 150);
   return {
-    position: [0, 1.92 + short * 0.38 + tall * 0.12, 6.35 + tall * 1.15 + short * 0.45 + narrow * 0.28],
-    lookAt: [0, 0.38 - short * 0.1, 0],
-    fov: 52 + tall * 12 + narrow * 2,
+    position: [0, 2.28 + short * 0.14 + tall * 0.18, 8.85 + tall * 0.95 + short * 0.3 + narrow * 0.35],
+    lookAt: [0, 0.58 - short * 0.08, 0],
+    fov: 58 + tall * 6 + narrow * 2,
   };
 }
 
@@ -83,11 +121,48 @@ export function viewportForFrame(
   const heights = [r3fHeight, clientHeight, innerHeight].filter(usable);
   return {
     width: widths.length ? Math.min(...widths) : 1280,
-    height: heights.length ? Math.min(...heights) : 800,
+    // The tallest real measurement wins. A collapsed height must not
+    // flip a narrow window into the desktop camera and crop the rim.
+    height: heights.length ? Math.max(...heights) : 800,
   };
 }
 
-/** Normalized device coordinates. y = 1 is the top of the view. */
+export function frameMode(width: number, height: number): "phone" | "desktop" {
+  return isPhonePortrait(width, height) ? "phone" : "desktop";
+}
+
+export type FrameDebug = {
+  innerWidth: number;
+  innerHeight: number;
+  canvasWidth: number;
+  canvasHeight: number;
+  dpr: number;
+  position: [number, number, number];
+  fov: number;
+  mode: "phone" | "desktop";
+};
+
+export const frameDebug: FrameDebug = {
+  innerWidth: 0,
+  innerHeight: 0,
+  canvasWidth: 0,
+  canvasHeight: 0,
+  dpr: 1,
+  position: [0, 2.55, 4.05],
+  fov: 34,
+  mode: "desktop",
+};
+
+export function publishFrameDebug(next: FrameDebug): void {
+  frameDebug.innerWidth = next.innerWidth;
+  frameDebug.innerHeight = next.innerHeight;
+  frameDebug.canvasWidth = next.canvasWidth;
+  frameDebug.canvasHeight = next.canvasHeight;
+  frameDebug.dpr = next.dpr;
+  frameDebug.position = next.position;
+  frameDebug.fov = next.fov;
+  frameDebug.mode = next.mode;
+}
 export function projectFrame(
   frame: CameraFrame,
   point: [number, number, number],

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { BREW_BOUNDS, DESKTOP_FRAME, frameFor, isPhonePortrait, projectFrame, viewportForFrame } from "./frame.ts";
+import { BREW_BOUNDS, DESKTOP_FRAME, frameFor, frameMode, isPhonePortrait, projectFrame, spillFramePoints, viewportForFrame } from "./frame.ts";
 
 const phones = [
   [320, 568],
@@ -52,10 +52,41 @@ test("portrait phones pull back, widen, and clear the bottom chrome", () => {
 
 test("a wide canvas does not hide a portrait window", () => {
   const view = viewportForFrame(980, 1600, 980, 1600, 390, 844);
-  assert.deepEqual(view, { width: 390, height: 844 });
+  assert.deepEqual(view, { width: 390, height: 1600 });
   assert.equal(isPhonePortrait(view.width, view.height), true);
   assert.ok(frameFor(view.width, view.height).position[2] > DESKTOP_FRAME.position[2]);
+  const collapsed = viewportForFrame(390, 100, 390, 100, 390, 844);
+  assert.deepEqual(collapsed, { width: 390, height: 844 });
+  assert.equal(frameMode(collapsed.width, collapsed.height), "phone");
   const desktop = viewportForFrame(1280, 800, 1280, 800, 1280, 800);
   assert.deepEqual(desktop, { width: 1280, height: 800 });
+  assert.equal(frameMode(desktop.width, desktop.height), "desktop");
   assert.deepEqual(frameFor(desktop.width, desktop.height).position, DESKTOP_FRAME.position);
+});
+
+test("phone framing keeps the pot and the spill inside at max scale and tilt", () => {
+  const phones = [
+    [360, 780],
+    [390, 844],
+    [430, 932],
+  ] as const;
+  for (const [width, height] of phones) {
+    assert.equal(frameMode(width, height), "phone");
+    const frame = frameFor(width, height);
+    const aspect = width / height;
+    let minY = 1;
+    let maxY = -1;
+    let maxX = 0;
+    for (const point of spillFramePoints()) {
+      const ndc = projectFrame(frame, point, aspect);
+      minY = Math.min(minY, ndc.y);
+      maxY = Math.max(maxY, ndc.y);
+      maxX = Math.max(maxX, Math.abs(ndc.x));
+    }
+    assert.ok(maxX < 0.88, `${width}x${height} spill side ndc ${maxX}`);
+    assert.ok(minY > -0.72, `${width}x${height} spill feet ndc ${minY}`);
+    assert.ok(maxY < 0.92, `${width}x${height} spill top ndc ${maxY}`);
+    assert.ok(frame.position[2] > 8);
+    assert.ok(frame.fov > 55);
+  }
 });

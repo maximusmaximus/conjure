@@ -1,7 +1,7 @@
 import type { Drop, FormId, Vibe } from "./brew";
 import type { MaterialNote } from "./fx";
 import type { PhysicsNote } from "./physics";
-import type { SpinNote } from "./spin";
+import type { SpinNote, MotionNote } from "./spin";
 
 export type Contributor = {
   id: string;
@@ -21,6 +21,7 @@ export type Creation = {
   createdAt: number;
   still?: string;
   spin?: SpinNote;
+  motion?: MotionNote;
   physics?: PhysicsNote;
   material?: MaterialNote;
 };

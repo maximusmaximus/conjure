@@ -515,6 +515,24 @@
   display: block;
 }
 
+.frame-debug {
+  position: fixed;
+  z-index: 40;
+  top: 0.4rem;
+  right: 0.4rem;
+  margin: 0;
+  padding: 0.35rem 0.45rem;
+  max-width: 16rem;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: var(--color-fg);
+  background: color-mix(in srgb, var(--color-bg) 86%, transparent);
+  border: 1px solid var(--color-line);
+  pointer-events: none;
+  white-space: pre;
+}
+
 .made-in a:focus-visible {
   outline: 2px solid var(--color-ember);
   outline-offset: 3px;

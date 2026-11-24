@@ -1,6 +1,6 @@
 import { ot as require_jsx_runtime } from "../_libs/@react-three/drei+[...].mjs";
-import { n as PageFrame } from "./app-wwd7ACR1.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/privacy-DVIsDSzo.js
+import { n as PageFrame } from "./app-BzIaw2Tf.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/privacy-BTjM2825.js
 var import_jsx_runtime = require_jsx_runtime();
 function PrivacyPage() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(PageFrame, {

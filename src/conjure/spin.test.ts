@@ -4,10 +4,15 @@ import {
   brewMetadata,
   impulse,
   resetSpin,
+  resetTumble,
+  SCALE_MAX,
+  SCALE_MIN,
   spin,
   spinFrames,
   spinSnapshot,
   stepSpin,
+  stepTumble,
+  tumble,
 } from "./spin.ts";
 
 test("spin eases out and the snapshot keeps axis, damping, and count", () => {
@@ -80,8 +85,40 @@ test("mint metadata points at the loop and records the spin", () => {
       "Bloom",
       "Tone mapping",
       "Tier",
+      "Rotation",
+      "Scale",
+      "Scale range",
+      "Spill lip",
+      "Body cap",
     ],
   );
   assert.equal(attributes[0].value, 1.25);
   assert.equal(attributes[2].value, 1.7);
+  const motion = meta.properties as { motion: { scaleMin: number; scaleMax: number; spillLip: number } };
+  assert.equal(motion.motion.scaleMin, SCALE_MIN);
+  assert.equal(motion.motion.scaleMax, SCALE_MAX);
+  assert.equal(motion.motion.spillLip, 1.05);
+});
+
+test("breathing scale stays inside its bounds while the pot tumbles", () => {
+  resetSpin();
+  resetTumble();
+  let min = 10;
+  let max = -1;
+  let maxTilt = 0;
+  let spun = false;
+  for (let i = 0; i < 240; i += 1) {
+    stepTumble(1 / 30, 1);
+    assert.ok(tumble.scale >= SCALE_MIN - 1e-9);
+    assert.ok(tumble.scale <= SCALE_MAX + 1e-9);
+    min = Math.min(min, tumble.scale);
+    max = Math.max(max, tumble.scale);
+    maxTilt = Math.max(maxTilt, Math.abs(tumble.x), Math.abs(tumble.z));
+    if (tumble.y > 0.2) spun = true;
+  }
+  assert.ok(max - min > 0.05, `scale span ${max - min}`);
+  assert.ok(maxTilt > 0.02);
+  assert.equal(spun, true);
+  resetTumble();
+  resetSpin();
 });
